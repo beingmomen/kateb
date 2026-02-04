@@ -96,8 +96,8 @@ async function handleCopy() {
         </div>
 
         <div class="text-center text-sm text-muted">
-          <UKbd>Ctrl</UKbd> + <UKbd>Shift</UKbd> + <UKbd>D</UKbd>
-          <span class="mr-2">لبدء/إيقاف الإملاء</span>
+          <UKbd>Z</UKbd> + <UKbd>Z</UKbd>
+          <span class="mr-2">اضغط مرتين بسرعة لبدء/إيقاف الإملاء</span>
         </div>
       </div>
     </template>

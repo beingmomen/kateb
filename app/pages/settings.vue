@@ -11,7 +11,7 @@ onMounted(() => {
 })
 
 const shortcut = computed({
-  get: () => getSettingValue('shortcut', 'Ctrl+Shift+D'),
+  get: () => getSettingValue('shortcut', 'Z + Z'),
   set: (val) => updateSetting('shortcut', JSON.stringify(val))
 })
 

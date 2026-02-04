@@ -5,8 +5,9 @@ mod audio;
 mod keyboard;
 
 use commands::dictation::DictationState;
-use std::sync::Mutex;
-use tauri::Manager;
+use std::sync::{Arc, Mutex};
+use std::time::Instant;
+use tauri::{Emitter, Manager};
 use tauri_plugin_autostart::MacosLauncher;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -29,7 +30,7 @@ pub fn run() {
                 .path()
                 .resource_dir()
                 .expect("failed to get resource dir");
-            let model_path = resource_path.join("resources").join("ggml-large-v3.bin");
+            let model_path = resource_path.join("resources").join("ggml-large-v3-turbo.bin");
 
             if model_path.exists() {
                 if let Err(e) = transcriber.load_model(&model_path) {
@@ -44,6 +45,34 @@ pub fn run() {
                 transcriber: Mutex::new(transcriber),
                 is_recording: Mutex::new(false),
                 is_processing: Mutex::new(false),
+            });
+
+            let handle = app.handle().clone();
+            std::thread::spawn(move || {
+                let last_z = Arc::new(Mutex::new(Instant::now()));
+                let first_press = Arc::new(Mutex::new(false));
+
+                let last_z_cb = Arc::clone(&last_z);
+                let first_press_cb = Arc::clone(&first_press);
+                let handle_cb = handle.clone();
+
+                rdev::listen(move |event| {
+                    if let rdev::EventType::KeyPress(rdev::Key::KeyZ) = event.event_type {
+                        let now = Instant::now();
+                        let mut last = last_z_cb.lock().unwrap();
+                        let mut first = first_press_cb.lock().unwrap();
+
+                        if *first && now.duration_since(*last).as_millis() < 400 {
+                            *first = false;
+                            eprintln!("[shortcut] Double-Z detected! Toggling dictation...");
+                            let _ = handle_cb.emit("toggle-dictation", ());
+                        } else {
+                            *first = true;
+                            *last = now;
+                        }
+                    }
+                })
+                .expect("Failed to start global key listener");
             });
 
             Ok(())

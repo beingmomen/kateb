@@ -54,6 +54,7 @@ export function useDictation() {
 
   let unlistenStatus = null
   let unlistenResult = null
+  let unlistenToggle = null
 
   onMounted(async () => {
     unlistenStatus = await tauriListen('dictation-status', (event) => {
@@ -64,11 +65,18 @@ export function useDictation() {
     unlistenResult = await tauriListen('dictation-result', (event) => {
       lastResult.value = event.payload.text
     })
+
+    unlistenToggle = await tauriListen('toggle-dictation', () => {
+      if (!isProcessing.value) {
+        toggleDictation()
+      }
+    })
   })
 
   onUnmounted(() => {
     if (unlistenStatus) unlistenStatus()
     if (unlistenResult) unlistenResult()
+    if (unlistenToggle) unlistenToggle()
   })
 
   return {

@@ -17,7 +17,8 @@ impl WhisperTranscriber {
     }
 
     pub fn load_model(&mut self, model_path: &PathBuf) -> Result<(), anyhow::Error> {
-        let params = WhisperContextParameters::default();
+        let mut params = WhisperContextParameters::default();
+        params.use_gpu(true);
         let ctx = WhisperContext::new_with_params(
             model_path.to_str().ok_or_else(|| anyhow::anyhow!("Invalid model path"))?,
             params,
@@ -66,15 +67,16 @@ impl WhisperTranscriber {
             .map_err(|e| anyhow::anyhow!("فشل التحويل: {}", e))?;
         eprintln!("[whisper] Transcription took {:.1}s", start.elapsed().as_secs_f64());
 
-        let num_segments = state.full_n_segments()
-            .map_err(|e| anyhow::anyhow!("فشل الحصول على عدد الأجزاء: {}", e))?;
+        let num_segments = state.full_n_segments();
 
         eprintln!("[whisper] Got {} segments", num_segments);
         let mut text = String::new();
         for i in 0..num_segments {
-            if let Ok(segment) = state.full_get_segment_text(i) {
-                eprintln!("[whisper] Segment {}: '{}'", i, segment);
-                text.push_str(&segment);
+            if let Some(segment) = state.get_segment(i) {
+                if let Ok(seg_text) = segment.to_str() {
+                    eprintln!("[whisper] Segment {}: '{}'", i, seg_text);
+                    text.push_str(seg_text);
+                }
             }
         }
 

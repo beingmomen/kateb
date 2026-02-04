@@ -73,3 +73,13 @@ This file documents issues encountered during development and their solutions.
 **Solution**: Replaced top-level await with `onMounted(() => { fetchDailyStats(); fetchSummary() })`
 **Files Modified**: `app/pages/stats.vue`
 **Prevention**: Never use top-level await for Tauri invoke calls in pages; use onMounted instead
+
+---
+
+### [2026-02-04] - CUDA Build Failed with whisper-rs 0.12
+**Problem**: `cargo build` with `whisper-rs = { version = "0.12", features = ["cuda"] }` failed: `ggml-cuda/common.cuh: No such file or directory`
+**Root Cause**: whisper-rs 0.12 bundles an older whisper.cpp that doesn't have the restructured CUDA source files
+**Solution**: Upgraded to `whisper-rs = { version = "0.15", features = ["cuda"] }` which has updated whisper.cpp with proper CUDA support
+**Files Modified**: `src-tauri/Cargo.toml`, `src-tauri/src/whisper/transcriber.rs`
+**API Changes in 0.15**: `full_n_segments()` returns `i32` (not `Result`), `full_get_segment_text(i)` replaced by `get_segment(i)` returning `Option<WhisperSegment>`, segment text accessed via `segment.to_str()`
+**Prevention**: Check crate changelog before upgrading major features
