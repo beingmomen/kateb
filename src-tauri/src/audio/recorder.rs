@@ -115,6 +115,16 @@ impl AudioRecorder {
         }
     }
 
+    pub fn get_buffer_snapshot(&self) -> Vec<f32> {
+        let buf = self.buffer.lock().unwrap();
+        buf.clone()
+    }
+
+    pub fn get_buffer_len(&self) -> usize {
+        let buf = self.buffer.lock().unwrap();
+        buf.len()
+    }
+
     pub fn get_audio_level(&self) -> f32 {
         let buf = self.buffer.lock().unwrap();
         if buf.is_empty() {

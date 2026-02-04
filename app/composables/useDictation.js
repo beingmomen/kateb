@@ -4,11 +4,15 @@ export function useDictation() {
   const isRecording = ref(false)
   const isProcessing = ref(false)
   const lastResult = ref('')
+  const streamingText = ref('')
+  const partialChunks = ref([])
   const error = ref(null)
 
   async function startDictation() {
     try {
       error.value = null
+      streamingText.value = ''
+      partialChunks.value = []
       await tauriInvoke('start_dictation')
       isRecording.value = true
     } catch (e) {
@@ -55,6 +59,7 @@ export function useDictation() {
   let unlistenStatus = null
   let unlistenResult = null
   let unlistenToggle = null
+  let unlistenPartial = null
 
   onMounted(async () => {
     unlistenStatus = await tauriListen('dictation-status', (event) => {
@@ -71,18 +76,32 @@ export function useDictation() {
         toggleDictation()
       }
     })
+
+    unlistenPartial = await tauriListen('dictation-partial', (event) => {
+      const { text, is_final } = event.payload
+      if (is_final) {
+        lastResult.value = text
+        streamingText.value = ''
+        partialChunks.value = []
+      } else {
+        partialChunks.value.push(text)
+        streamingText.value = partialChunks.value.join(' ')
+      }
+    })
   })
 
   onUnmounted(() => {
     if (unlistenStatus) unlistenStatus()
     if (unlistenResult) unlistenResult()
     if (unlistenToggle) unlistenToggle()
+    if (unlistenPartial) unlistenPartial()
   })
 
   return {
     isRecording,
     isProcessing,
     lastResult,
+    streamingText,
     error,
     startDictation,
     stopDictation,

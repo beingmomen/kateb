@@ -5,6 +5,7 @@ mod audio;
 mod keyboard;
 
 use commands::dictation::DictationState;
+use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use tauri::{Emitter, Manager};
@@ -45,6 +46,7 @@ pub fn run() {
                 transcriber: Mutex::new(transcriber),
                 is_recording: Mutex::new(false),
                 is_processing: Mutex::new(false),
+                streaming_active: Arc::new(AtomicBool::new(false)),
             });
 
             let handle = app.handle().clone();

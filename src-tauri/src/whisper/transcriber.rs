@@ -40,6 +40,17 @@ impl WhisperTranscriber {
         self.auto_punctuation = enabled;
     }
 
+    fn apply_anti_hallucination(params: &mut FullParams) {
+        params.set_suppress_blank(true);
+        params.set_suppress_nst(true);
+        params.set_no_speech_thold(0.6);
+        params.set_entropy_thold(2.4);
+        params.set_logprob_thold(-1.0);
+        params.set_temperature(0.0);
+        params.set_temperature_inc(0.0);
+        params.set_initial_prompt("إملاء صوتي باللغة العربية.");
+    }
+
     pub fn transcribe(&self, audio_data: &[f32]) -> Result<String, anyhow::Error> {
         eprintln!("[whisper] transcribe called with {} samples ({:.1}s of audio)", audio_data.len(), audio_data.len() as f64 / 16000.0);
 
@@ -59,6 +70,7 @@ impl WhisperTranscriber {
         params.set_print_progress(true);
         params.set_print_realtime(false);
         params.set_print_special(false);
+        Self::apply_anti_hallucination(&mut params);
 
         eprintln!("[whisper] Running transcription (language: {})...", self.language);
         let start = std::time::Instant::now();
@@ -81,6 +93,43 @@ impl WhisperTranscriber {
         }
 
         eprintln!("[whisper] Final text: '{}'", text.trim());
+        Ok(text.trim().to_string())
+    }
+
+    pub fn transcribe_chunk(&self, audio_chunk: &[f32]) -> Result<String, anyhow::Error> {
+        let ctx = self
+            .ctx
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("النموذج غير محمّل"))?;
+
+        let mut state = ctx.create_state()
+            .map_err(|e| anyhow::anyhow!("فشل إنشاء حالة Whisper: {}", e))?;
+
+        let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
+        params.set_language(Some(&self.language));
+        params.set_translate(false);
+        params.set_no_timestamps(true);
+        params.set_single_segment(true);
+        params.set_print_progress(false);
+        params.set_print_realtime(false);
+        params.set_print_special(false);
+        params.set_no_context(true);
+        Self::apply_anti_hallucination(&mut params);
+
+        state
+            .full(params, audio_chunk)
+            .map_err(|e| anyhow::anyhow!("فشل التحويل: {}", e))?;
+
+        let num_segments = state.full_n_segments();
+        let mut text = String::new();
+        for i in 0..num_segments {
+            if let Some(segment) = state.get_segment(i) {
+                if let Ok(seg_text) = segment.to_str() {
+                    text.push_str(seg_text);
+                }
+            }
+        }
+
         Ok(text.trim().to_string())
     }
 }

@@ -3,7 +3,7 @@ definePageMeta({
   layout: 'dashboard'
 })
 
-const { isRecording, isProcessing, lastResult, error, toggleDictation } = useDictation()
+const { isRecording, isProcessing, lastResult, streamingText, error, toggleDictation } = useDictation()
 
 const statusText = computed(() => {
   if (isProcessing.value) return 'جارٍ المعالجة...'
@@ -71,6 +71,26 @@ async function handleCopy() {
             icon="i-lucide-alert-circle"
             :title="String(error)"
           />
+        </div>
+
+        <div
+          v-if="isRecording && streamingText"
+          class="w-full max-w-2xl"
+        >
+          <UCard>
+            <template #header>
+              <div class="flex items-center justify-between">
+                <span class="font-semibold">نص مباشر...</span>
+                <UBadge color="error" variant="subtle" size="xs">
+                  مباشر
+                </UBadge>
+              </div>
+            </template>
+
+            <p class="text-lg leading-relaxed whitespace-pre-wrap text-muted animate-pulse">
+              {{ streamingText }}
+            </p>
+          </UCard>
         </div>
 
         <div
