@@ -45,6 +45,11 @@ const maxDuration = computed({
   set: (val) => updateSetting('max_recording_duration', String(val))
 })
 
+const aiRefinement = computed({
+  get: () => getSettingValue('ai_refinement', false),
+  set: (val) => updateSetting('ai_refinement', String(val))
+})
+
 const languageOptions = [
   { label: 'العربية', value: 'ar' },
   { label: 'English', value: 'en' }
@@ -196,6 +201,38 @@ function handleSave() {
                 :model-value="autoStart"
                 @update:model-value="autoStart = $event"
               />
+            </div>
+          </div>
+        </UCard>
+        <UCard>
+          <template #header>
+            <div class="flex items-center gap-2">
+              <UIcon
+                name="i-lucide-sparkles"
+                class="size-5"
+              />
+              <span class="font-semibold">تحسين النص بالذكاء الاصطناعي</span>
+            </div>
+          </template>
+
+          <div class="space-y-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="font-medium">تفعيل التحسين بالذكاء الاصطناعي</p>
+                <p class="text-sm text-muted">تصحيح الأخطاء وإضافة علامات الترقيم تلقائياً (Claude - محلي)</p>
+              </div>
+              <USwitch
+                :model-value="aiRefinement"
+                @update:model-value="aiRefinement = $event"
+              />
+            </div>
+
+            <USeparator />
+
+            <div>
+              <p class="text-sm text-muted">
+                تأكد من تشغيل Claude Code API على المنفذ <code class="bg-gray-100 dark:bg-gray-800 px-1 rounded">8000</code> قبل استخدام هذه الميزة.
+              </p>
             </div>
           </div>
         </UCard>

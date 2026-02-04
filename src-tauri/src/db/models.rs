@@ -34,21 +34,3 @@ pub struct SummaryStats {
     pub days_active: i64,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct DictationStatus {
-    pub is_recording: bool,
-    pub is_processing: bool,
-    pub duration_seconds: u64,
-    pub error: Option<String>,
-}
-
-impl Default for DictationStatus {
-    fn default() -> Self {
-        Self {
-            is_recording: false,
-            is_processing: false,
-            duration_seconds: 0,
-            error: None,
-        }
-    }
-}

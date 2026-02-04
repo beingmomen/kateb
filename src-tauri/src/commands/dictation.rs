@@ -1,3 +1,4 @@
+use crate::ai::refiner::TextRefiner;
 use crate::audio::recorder::AudioRecorder;
 use crate::db::Database;
 use crate::keyboard::simulator::KeyboardSimulator;
@@ -67,6 +68,14 @@ fn is_chunk_hallucination(text: &str) -> bool {
             return true;
         }
     }
+    let words: Vec<&str> = trimmed.split_whitespace().collect();
+    if words.len() >= 4 {
+        let first_word = words[0];
+        let repeat_count = words.iter().filter(|&&w| w == first_word).count();
+        if repeat_count as f32 / words.len() as f32 > 0.5 {
+            return true;
+        }
+    }
     false
 }
 
@@ -76,6 +85,7 @@ pub struct DictationState {
     pub is_recording: Mutex<bool>,
     pub is_processing: Mutex<bool>,
     pub streaming_active: Arc<AtomicBool>,
+    pub streaming_thread: Mutex<Option<std::thread::JoinHandle<()>>>,
 }
 
 fn streaming_transcription_loop(
@@ -96,10 +106,12 @@ fn streaming_transcription_loop(
 
         let state: tauri::State<'_, DictationState> = app.state();
 
-        let current_len = {
+        let (current_len, audio_level) = {
             let recorder = state.recorder.lock().unwrap();
-            recorder.get_buffer_len()
+            (recorder.get_buffer_len(), recorder.get_audio_level())
         };
+
+        let _ = app.emit("audio-level", serde_json::json!({ "level": audio_level }));
 
         let new_samples = current_len.saturating_sub(last_processed_pos);
         if new_samples < CHUNK_SAMPLES {
@@ -187,9 +199,14 @@ pub async fn start_dictation(
     let streaming_active = Arc::clone(&state.streaming_active);
     let app_handle = app.clone();
 
-    std::thread::spawn(move || {
+    let handle = std::thread::spawn(move || {
         streaming_transcription_loop(streaming_active, app_handle);
     });
+
+    {
+        let mut thread_handle = state.streaming_thread.lock().map_err(|e| e.to_string())?;
+        *thread_handle = Some(handle);
+    }
 
     Ok(())
 }
@@ -200,27 +217,38 @@ pub async fn stop_dictation(
     db: State<'_, Database>,
     app: tauri::AppHandle,
 ) -> Result<String, String> {
-    state.streaming_active.store(false, Ordering::SeqCst);
-    eprintln!("[dictation] Waiting for streaming thread to finish...");
-    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
-
-    let (audio_data, duration) = {
+    {
         let mut is_recording = state.is_recording.lock().map_err(|e| e.to_string())?;
         if !*is_recording {
             return Err("لا يوجد تسجيل نشط".to_string());
         }
+        *is_recording = false;
+    }
 
+    state.streaming_active.store(false, Ordering::SeqCst);
+    eprintln!("[dictation] Waiting for streaming thread to finish...");
+
+    let handle = {
+        let mut thread_handle = state.streaming_thread.lock().map_err(|e| e.to_string())?;
+        thread_handle.take()
+    };
+    if let Some(h) = handle {
+        tokio::task::spawn_blocking(move || { let _ = h.join(); })
+            .await
+            .map_err(|e| e.to_string())?;
+    }
+    eprintln!("[dictation] Streaming thread joined successfully");
+
+    let (audio_data, duration) = {
         let recorder = state.recorder.lock().map_err(|e| e.to_string())?;
         let audio_data = match recorder.stop() {
             Ok(data) => data,
             Err(e) => {
-                *is_recording = false;
                 eprintln!("[dictation] ERROR stopping recorder: {}", e);
                 return Err(e.to_string());
             }
         };
         let duration = recorder.get_duration_seconds();
-        *is_recording = false;
         eprintln!("[dictation] Audio captured: {} samples ({:.1}s), duration: {}s", audio_data.len(), audio_data.len() as f64 / 16000.0, duration);
         (audio_data, duration)
     };
@@ -267,6 +295,36 @@ pub async fn stop_dictation(
         }
     };
 
+    let ai_enabled = {
+        let conn = db.0.lock().map_err(|e| e.to_string())?;
+        conn.query_row(
+            "SELECT value FROM settings WHERE key = 'ai_refinement'",
+            [],
+            |row| row.get::<_, String>(0),
+        )
+        .unwrap_or_else(|_| "false".to_string())
+    };
+    let text = if ai_enabled == "true" && !text.trim().is_empty() {
+        eprintln!("[ai] AI refinement enabled, streaming to Claude (local)...");
+        let refiner = TextRefiner::new();
+        match refiner.refine_streaming(&text, &app).await {
+            Ok(refined) if !refined.trim().is_empty() => {
+                eprintln!("[ai] Refinement successful");
+                refined
+            }
+            Ok(_) => {
+                eprintln!("[ai] Refinement returned empty, using original");
+                text
+            }
+            Err(e) => {
+                eprintln!("[ai] Refinement failed, using original: {}", e);
+                text
+            }
+        }
+    } else {
+        text
+    };
+
     {
         let mut is_processing = state.is_processing.lock().map_err(|e| e.to_string())?;
         *is_processing = false;
@@ -283,7 +341,7 @@ pub async fn stop_dictation(
         "is_final": true
     }));
 
-    if !text.trim().is_empty() {
+    if !text.trim().is_empty() && !is_chunk_hallucination(&text) {
         let conn = db.0.lock().map_err(|e| e.to_string())?;
         let language = {
             let transcriber = state.transcriber.lock().map_err(|e| e.to_string())?;

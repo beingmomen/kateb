@@ -4,7 +4,6 @@ use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextPar
 pub struct WhisperTranscriber {
     ctx: Option<WhisperContext>,
     language: String,
-    auto_punctuation: bool,
 }
 
 impl WhisperTranscriber {
@@ -12,7 +11,6 @@ impl WhisperTranscriber {
         Self {
             ctx: None,
             language: "ar".to_string(),
-            auto_punctuation: true,
         }
     }
 
@@ -28,16 +26,8 @@ impl WhisperTranscriber {
         Ok(())
     }
 
-    pub fn set_language(&mut self, lang: &str) {
-        self.language = lang.to_string();
-    }
-
     pub fn get_language(&self) -> String {
         self.language.clone()
-    }
-
-    pub fn set_auto_punctuation(&mut self, enabled: bool) {
-        self.auto_punctuation = enabled;
     }
 
     fn apply_anti_hallucination(params: &mut FullParams) {

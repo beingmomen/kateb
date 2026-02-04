@@ -1,26 +1,56 @@
 import { tauriInvoke, tauriListen } from '~/utils/tauri'
 
+const MAX_AUDIO_LEVELS = 50
+
 export function useDictation() {
   const isRecording = ref(false)
   const isProcessing = ref(false)
+  const isRefining = ref(false)
   const lastResult = ref('')
   const streamingText = ref('')
+  const refiningText = ref('')
   const partialChunks = ref([])
   const error = ref(null)
+  const isStopping = ref(false)
+  const audioLevel = ref(0)
+  const audioLevels = ref([])
+  const recordingDuration = ref(0)
+
+  let durationInterval = null
+
+  function startDurationTimer() {
+    recordingDuration.value = 0
+    durationInterval = setInterval(() => {
+      recordingDuration.value++
+    }, 1000)
+  }
+
+  function stopDurationTimer() {
+    if (durationInterval) {
+      clearInterval(durationInterval)
+      durationInterval = null
+    }
+  }
 
   async function startDictation() {
     try {
       error.value = null
       streamingText.value = ''
       partialChunks.value = []
+      audioLevels.value = []
+      audioLevel.value = 0
       await tauriInvoke('start_dictation')
       isRecording.value = true
+      startDurationTimer()
     } catch (e) {
       error.value = e
     }
   }
 
   async function stopDictation() {
+    if (isStopping.value) return
+    isStopping.value = true
+    stopDurationTimer()
     try {
       error.value = null
       const text = await tauriInvoke('stop_dictation')
@@ -32,6 +62,8 @@ export function useDictation() {
       error.value = e
       isRecording.value = false
       isProcessing.value = false
+    } finally {
+      isStopping.value = false
     }
   }
 
@@ -60,6 +92,9 @@ export function useDictation() {
   let unlistenResult = null
   let unlistenToggle = null
   let unlistenPartial = null
+  let unlistenAudioLevel = null
+  let unlistenRefineChunk = null
+  let unlistenRefineStatus = null
 
   onMounted(async () => {
     unlistenStatus = await tauriListen('dictation-status', (event) => {
@@ -88,21 +123,51 @@ export function useDictation() {
         streamingText.value = partialChunks.value.join(' ')
       }
     })
+
+    unlistenAudioLevel = await tauriListen('audio-level', (event) => {
+      audioLevel.value = event.payload.level
+      audioLevels.value.push(event.payload.level)
+      if (audioLevels.value.length > MAX_AUDIO_LEVELS) {
+        audioLevels.value.shift()
+      }
+    })
+
+    unlistenRefineChunk = await tauriListen('ai-refine-chunk', (event) => {
+      refiningText.value = event.payload.accumulated
+    })
+
+    unlistenRefineStatus = await tauriListen('ai-refine-status', (event) => {
+      if (event.payload.status === 'started') {
+        isRefining.value = true
+        refiningText.value = ''
+      } else if (event.payload.status === 'done' || event.payload.status === 'error') {
+        isRefining.value = false
+      }
+    })
   })
 
   onUnmounted(() => {
+    stopDurationTimer()
     if (unlistenStatus) unlistenStatus()
     if (unlistenResult) unlistenResult()
     if (unlistenToggle) unlistenToggle()
     if (unlistenPartial) unlistenPartial()
+    if (unlistenAudioLevel) unlistenAudioLevel()
+    if (unlistenRefineChunk) unlistenRefineChunk()
+    if (unlistenRefineStatus) unlistenRefineStatus()
   })
 
   return {
     isRecording,
     isProcessing,
+    isRefining,
     lastResult,
     streamingText,
+    refiningText,
     error,
+    audioLevel,
+    audioLevels,
+    recordingDuration,
     startDictation,
     stopDictation,
     toggleDictation,

@@ -1,3 +1,4 @@
+mod ai;
 mod commands;
 mod db;
 mod whisper;
@@ -13,6 +14,7 @@ use tauri_plugin_autostart::MacosLauncher;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let _ = dotenvy::dotenv();
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_notification::init())
@@ -47,6 +49,7 @@ pub fn run() {
                 is_recording: Mutex::new(false),
                 is_processing: Mutex::new(false),
                 streaming_active: Arc::new(AtomicBool::new(false)),
+                streaming_thread: Mutex::new(None),
             });
 
             let handle = app.handle().clone();

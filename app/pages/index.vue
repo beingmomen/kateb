@@ -3,9 +3,10 @@ definePageMeta({
   layout: 'dashboard'
 })
 
-const { isRecording, isProcessing, lastResult, streamingText, error, toggleDictation } = useDictation()
+const { isRecording, isProcessing, isRefining, lastResult, refiningText, error, toggleDictation, audioLevels, recordingDuration } = useDictation()
 
 const statusText = computed(() => {
+  if (isRefining.value) return 'جارٍ تحسين النص...'
   if (isProcessing.value) return 'جارٍ المعالجة...'
   if (isRecording.value) return 'جارٍ التسجيل...'
   return 'اضغط للبدء'
@@ -15,6 +16,12 @@ const statusColor = computed(() => {
   if (isProcessing.value) return 'warning'
   if (isRecording.value) return 'error'
   return 'primary'
+})
+
+const formattedDuration = computed(() => {
+  const mins = Math.floor(recordingDuration.value / 60)
+  const secs = recordingDuration.value % 60
+  return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
 })
 
 const toast = useToast()
@@ -63,6 +70,28 @@ async function handleCopy() {
         </div>
 
         <div
+          v-if="isRecording"
+          class="flex flex-col items-center gap-4 w-full max-w-md"
+        >
+          <div class="flex items-center gap-3">
+            <span class="relative flex h-3 w-3">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+              <span class="relative inline-flex rounded-full h-3 w-3 bg-red-500" />
+            </span>
+            <span class="text-2xl font-mono font-bold tabular-nums">{{ formattedDuration }}</span>
+          </div>
+
+          <div class="flex items-end justify-center gap-0.5 h-16 w-full max-w-xs">
+            <div
+              v-for="(level, i) in audioLevels"
+              :key="i"
+              class="flex-1 min-w-0.5 max-w-1.5 bg-red-500 rounded-t transition-all duration-150"
+              :style="{ height: `${Math.max(4, level * 100)}%`, opacity: 0.4 + (i / audioLevels.length) * 0.6 }"
+            />
+          </div>
+        </div>
+
+        <div
           v-if="error"
           class="w-full max-w-lg"
         >
@@ -74,22 +103,21 @@ async function handleCopy() {
         </div>
 
         <div
-          v-if="isRecording && streamingText"
+          v-if="isRefining && refiningText"
           class="w-full max-w-2xl"
         >
           <UCard>
             <template #header>
-              <div class="flex items-center justify-between">
-                <span class="font-semibold">نص مباشر...</span>
-                <UBadge color="error" variant="subtle" size="xs">
-                  مباشر
-                </UBadge>
+              <div class="flex items-center gap-2">
+                <UIcon
+                  name="i-lucide-sparkles"
+                  class="size-4 animate-pulse text-yellow-500"
+                />
+                <span class="font-semibold">جارٍ تحسين النص...</span>
               </div>
             </template>
 
-            <p class="text-lg leading-relaxed whitespace-pre-wrap text-muted animate-pulse">
-              {{ streamingText }}
-            </p>
+            <p class="text-lg leading-relaxed whitespace-pre-wrap">{{ refiningText }}</p>
           </UCard>
         </div>
 

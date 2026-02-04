@@ -23,11 +23,6 @@ impl AudioRecorder {
         }
     }
 
-    pub fn check_microphone() -> Result<bool, anyhow::Error> {
-        let host = cpal::default_host();
-        Ok(host.default_input_device().is_some())
-    }
-
     pub fn start(&self) -> Result<(), anyhow::Error> {
         let host = cpal::default_host();
         let device = host
