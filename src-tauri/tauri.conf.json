@@ -1,0 +1,49 @@
+{
+  "productName": "arabic-voice-dictation",
+  "version": "0.1.0",
+  "identifier": "com.arabic-voice-dictation.app",
+  "build": {
+    "beforeBuildCommand": "pnpm build",
+    "beforeDevCommand": "pnpm dev",
+    "devUrl": "http://localhost:3654",
+    "frontendDist": "../.output/public"
+  },
+  "app": {
+    "security": {
+      "csp": null
+    },
+    "windows": [
+      {
+        "title": "إملاء صوتي عربي",
+        "width": 1200,
+        "height": 800,
+        "resizable": true,
+        "fullscreen": false,
+        "center": true
+      }
+    ],
+    "trayIcon": {
+      "iconPath": "icons/icon.png",
+      "tooltip": "إملاء صوتي عربي",
+      "id": "main",
+      "menuOnLeftClick": true
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "resources": ["resources/ggml-large-v3.bin"]
+  },
+  "plugins": {
+    "shell": {
+      "open": true
+    }
+  }
+}

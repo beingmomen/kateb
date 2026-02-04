@@ -1,0 +1,27 @@
+[package]
+name = "arabic-voice-dictation"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "arabic_voice_dictation_lib"
+crate-type = ["lib", "cdylib", "staticlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-global-shortcut = "2"
+tauri-plugin-autostart = "2"
+tauri-plugin-notification = "2"
+tauri-plugin-shell = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+rusqlite = { version = "0.31", features = ["bundled"] }
+chrono = { version = "0.4", features = ["serde"] }
+cpal = "0.15"
+whisper-rs = "0.12"
+enigo = "0.2"
+tokio = { version = "1", features = ["full"] }
+anyhow = "1"
