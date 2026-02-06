@@ -17,9 +17,19 @@ const items = [[
   }
 ], [
   {
+    label: 'النموذج',
+    icon: 'i-lucide-brain',
+    to: '/models'
+  },
+  {
     label: 'الإعدادات',
     icon: 'i-lucide-settings',
     to: '/settings'
+  },
+  {
+    label: 'دعم المشروع',
+    icon: 'i-lucide-heart',
+    to: '/support'
   }
 ]]
 </script>

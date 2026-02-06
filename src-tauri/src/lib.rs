@@ -1,9 +1,12 @@
 mod ai;
-mod commands;
-mod db;
-mod whisper;
 mod audio;
+mod commands;
+mod constants;
+mod db;
+mod error;
 mod keyboard;
+mod models;
+mod whisper;
 
 use commands::dictation::DictationState;
 use std::sync::atomic::AtomicBool;
@@ -29,18 +32,22 @@ pub fn run() {
 
             let mut transcriber = whisper::transcriber::WhisperTranscriber::new();
 
-            let resource_path = app
-                .path()
-                .resource_dir()
-                .expect("failed to get resource dir");
-            let model_path = resource_path.join("resources").join("ggml-large-v3-turbo.bin");
+            let model_path = models::ModelDownloader::get_model_path(&app_handle)
+                .map(|p| p.to_path_buf())
+                .ok();
 
-            if model_path.exists() {
-                if let Err(e) = transcriber.load_model(&model_path) {
-                    eprintln!("Warning: Failed to load Whisper model: {}", e);
+            if let Some(ref path) = model_path {
+                if path.exists() {
+                    if let Err(e) = transcriber.load_model(path) {
+                        eprintln!("[model] Warning: Failed to load Whisper model: {}", e);
+                    } else {
+                        eprintln!("[model] Model loaded successfully: {:?}", path);
+                    }
+                } else {
+                    eprintln!("[model] Model not found at {:?}, will need to download", path);
                 }
             } else {
-                eprintln!("Warning: Whisper model not found at {:?}", model_path);
+                eprintln!("[model] Could not determine model path");
             }
 
             app.manage(DictationState {
@@ -94,6 +101,16 @@ pub fn run() {
             commands::history::clear_history,
             commands::history::get_usage_stats,
             commands::history::get_summary_stats,
+            commands::models::check_model_exists,
+            commands::models::download_model,
+            commands::models::get_model_path,
+            commands::models::delete_model,
+            commands::models::get_model_info,
+            commands::models::load_model,
+            commands::ai::test_ai_connection,
+            commands::ai::test_specific_provider,
+            commands::ai::get_ai_providers,
+            commands::ai::get_current_ai_provider,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

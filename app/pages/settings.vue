@@ -4,10 +4,12 @@ definePageMeta({
 })
 
 const { settings, loading, fetchSettings, updateSetting, getSettingValue } = useSettings()
+const { providers, isTestingConnection, connectionStatus, getProviders, testSpecificProvider } = useAI()
 const toast = useToast()
 
-onMounted(() => {
-  fetchSettings()
+onMounted(async () => {
+  await fetchSettings()
+  await getProviders()
 })
 
 const shortcut = computed({
@@ -50,6 +52,26 @@ const aiRefinement = computed({
   set: (val) => updateSetting('ai_refinement', String(val))
 })
 
+const aiProvider = computed({
+  get: () => getSettingValue('ai_provider', 'local'),
+  set: (val) => updateSetting('ai_provider', val)
+})
+
+const claudeApiKey = computed({
+  get: () => getSettingValue('claude_api_key', ''),
+  set: (val) => updateSetting('claude_api_key', val)
+})
+
+const openaiApiKey = computed({
+  get: () => getSettingValue('openai_api_key', ''),
+  set: (val) => updateSetting('openai_api_key', val)
+})
+
+const geminiApiKey = computed({
+  get: () => getSettingValue('gemini_api_key', ''),
+  set: (val) => updateSetting('gemini_api_key', val)
+})
+
 const languageOptions = [
   { label: 'العربية', value: 'ar' },
   { label: 'English', value: 'en' }
@@ -61,6 +83,49 @@ const durationOptions = [
   { label: '٥ دقائق', value: 300 },
   { label: '١٠ دقائق', value: 600 }
 ]
+
+const providerOptions = computed(() => {
+  return providers.value.map(p => ({
+    label: p.name,
+    value: p.id
+  }))
+})
+
+const currentProviderRequiresKey = computed(() => {
+  const provider = providers.value.find(p => p.id === aiProvider.value)
+  return provider?.requires_key ?? false
+})
+
+const currentApiKey = computed(() => {
+  switch (aiProvider.value) {
+    case 'claude':
+      return claudeApiKey.value
+    case 'openai':
+      return openaiApiKey.value
+    case 'gemini':
+      return geminiApiKey.value
+    default:
+      return ''
+  }
+})
+
+async function testConnection() {
+  const result = await testSpecificProvider(aiProvider.value, currentApiKey.value)
+  if (result.success) {
+    toast.add({
+      title: result.message,
+      icon: 'i-lucide-check',
+      color: 'success'
+    })
+  } else {
+    toast.add({
+      title: 'فشل الاتصال',
+      description: result.message,
+      icon: 'i-lucide-alert-circle',
+      color: 'error'
+    })
+  }
+}
 
 function handleSave() {
   toast.add({ title: 'تم حفظ الإعدادات', icon: 'i-lucide-check', color: 'success' })
@@ -132,7 +197,7 @@ function handleSave() {
 
             <UFormField label="نموذج Whisper">
               <UInput
-                model-value="Whisper Large V3"
+                model-value="Whisper Large V3 Turbo"
                 icon="i-lucide-brain"
                 readonly
                 disabled
@@ -204,6 +269,7 @@ function handleSave() {
             </div>
           </div>
         </UCard>
+
         <UCard>
           <template #header>
             <div class="flex items-center gap-2">
@@ -219,7 +285,7 @@ function handleSave() {
             <div class="flex items-center justify-between">
               <div>
                 <p class="font-medium">تفعيل التحسين بالذكاء الاصطناعي</p>
-                <p class="text-sm text-muted">تصحيح الأخطاء وإضافة علامات الترقيم تلقائياً (Claude - محلي)</p>
+                <p class="text-sm text-muted">تصحيح الأخطاء وإضافة علامات الترقيم تلقائياً</p>
               </div>
               <USwitch
                 :model-value="aiRefinement"
@@ -227,13 +293,71 @@ function handleSave() {
               />
             </div>
 
-            <USeparator />
+            <template v-if="aiRefinement">
+              <USeparator />
 
-            <div>
-              <p class="text-sm text-muted">
-                تأكد من تشغيل Claude Code API على المنفذ <code class="bg-gray-100 dark:bg-gray-800 px-1 rounded">8000</code> قبل استخدام هذه الميزة.
-              </p>
-            </div>
+              <UFormField label="مزود الذكاء الاصطناعي">
+                <USelect
+                  :model-value="aiProvider"
+                  :items="providerOptions"
+                  value-key="value"
+                  @update:model-value="aiProvider = $event"
+                />
+              </UFormField>
+
+              <template v-if="aiProvider === 'claude'">
+                <UFormField label="مفتاح Claude API">
+                  <UInput
+                    :model-value="claudeApiKey"
+                    type="password"
+                    icon="i-lucide-key"
+                    placeholder="sk-ant-..."
+                    @update:model-value="claudeApiKey = $event"
+                  />
+                </UFormField>
+              </template>
+
+              <template v-else-if="aiProvider === 'openai'">
+                <UFormField label="مفتاح OpenAI API">
+                  <UInput
+                    :model-value="openaiApiKey"
+                    type="password"
+                    icon="i-lucide-key"
+                    placeholder="sk-..."
+                    @update:model-value="openaiApiKey = $event"
+                  />
+                </UFormField>
+              </template>
+
+              <template v-else-if="aiProvider === 'gemini'">
+                <UFormField label="مفتاح Gemini API">
+                  <UInput
+                    :model-value="geminiApiKey"
+                    type="password"
+                    icon="i-lucide-key"
+                    placeholder="AIza..."
+                    @update:model-value="geminiApiKey = $event"
+                  />
+                </UFormField>
+              </template>
+
+              <template v-else-if="aiProvider === 'local'">
+                <div class="bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-200 p-4 rounded-lg text-sm">
+                  <p>
+                    يتطلب تشغيل خادم محلي على المنفذ <code class="bg-blue-100 dark:bg-blue-800 px-1 rounded">8000</code>
+                  </p>
+                </div>
+              </template>
+
+              <UButton
+                variant="soft"
+                icon="i-lucide-plug"
+                :loading="isTestingConnection"
+                @click="testConnection"
+              >
+                اختبار الاتصال
+              </UButton>
+            </template>
           </div>
         </UCard>
       </div>

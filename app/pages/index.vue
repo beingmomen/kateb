@@ -1,35 +1,45 @@
 <script setup>
 definePageMeta({
-  layout: 'dashboard'
-})
+  layout: "dashboard",
+});
 
-const { isRecording, isProcessing, isRefining, lastResult, refiningText, error, toggleDictation, audioLevels, recordingDuration } = useDictation()
+const {
+  isRecording,
+  isProcessing,
+  isRefining,
+  lastResult,
+  refiningText,
+  error,
+  toggleDictation,
+  audioLevels,
+  recordingDuration,
+} = useDictation();
 
 const statusText = computed(() => {
-  if (isRefining.value) return 'جارٍ تحسين النص...'
-  if (isProcessing.value) return 'جارٍ المعالجة...'
-  if (isRecording.value) return 'جارٍ التسجيل...'
-  return 'اضغط للبدء'
-})
+  if (isRefining.value) return "جارٍ تحسين النص...";
+  if (isProcessing.value) return "جارٍ المعالجة...";
+  if (isRecording.value) return "جارٍ التسجيل...";
+  return "اضغط للبدء";
+});
 
 const statusColor = computed(() => {
-  if (isProcessing.value) return 'warning'
-  if (isRecording.value) return 'error'
-  return 'primary'
-})
+  if (isProcessing.value) return "warning";
+  if (isRecording.value) return "error";
+  return "primary";
+});
 
 const formattedDuration = computed(() => {
-  const mins = Math.floor(recordingDuration.value / 60)
-  const secs = recordingDuration.value % 60
-  return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
-})
+  const mins = Math.floor(recordingDuration.value / 60);
+  const secs = recordingDuration.value % 60;
+  return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+});
 
-const toast = useToast()
+const toast = useToast();
 
 async function handleCopy() {
-  if (!lastResult.value) return
-  await navigator.clipboard.writeText(lastResult.value)
-  toast.add({ title: 'تم النسخ', icon: 'i-lucide-check' })
+  if (!lastResult.value) return;
+  await navigator.clipboard.writeText(lastResult.value);
+  toast.add({ title: "تم النسخ", icon: "i-lucide-check" });
 }
 </script>
 
@@ -60,11 +70,7 @@ async function handleCopy() {
             @click="toggleDictation"
           />
 
-          <UBadge
-            :color="statusColor"
-            variant="subtle"
-            size="lg"
-          >
+          <UBadge :color="statusColor" variant="subtle" size="xl">
             {{ statusText }}
           </UBadge>
         </div>
@@ -75,26 +81,34 @@ async function handleCopy() {
         >
           <div class="flex items-center gap-3">
             <span class="relative flex h-3 w-3">
-              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
-              <span class="relative inline-flex rounded-full h-3 w-3 bg-red-500" />
+              <span
+                class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"
+              />
+              <span
+                class="relative inline-flex rounded-full h-3 w-3 bg-red-500"
+              />
             </span>
-            <span class="text-2xl font-mono font-bold tabular-nums">{{ formattedDuration }}</span>
+            <span class="text-2xl font-mono font-bold tabular-nums">{{
+              formattedDuration
+            }}</span>
           </div>
 
-          <div class="flex items-end justify-center gap-0.5 h-16 w-full max-w-xs">
+          <div
+            class="flex items-end justify-center gap-0.5 h-16 w-full max-w-xs"
+          >
             <div
               v-for="(level, i) in audioLevels"
               :key="i"
               class="flex-1 min-w-0.5 max-w-1.5 bg-red-500 rounded-t transition-all duration-150"
-              :style="{ height: `${Math.max(4, level * 100)}%`, opacity: 0.4 + (i / audioLevels.length) * 0.6 }"
+              :style="{
+                height: `${Math.max(4, level * 100)}%`,
+                opacity: 0.4 + (i / audioLevels.length) * 0.6,
+              }"
             />
           </div>
         </div>
 
-        <div
-          v-if="error"
-          class="w-full max-w-lg"
-        >
+        <div v-if="error" class="w-full max-w-lg">
           <UAlert
             color="error"
             icon="i-lucide-alert-circle"
@@ -102,10 +116,7 @@ async function handleCopy() {
           />
         </div>
 
-        <div
-          v-if="isRefining && refiningText"
-          class="w-full max-w-2xl"
-        >
+        <div v-if="isRefining && refiningText" class="w-full max-w-2xl">
           <UCard>
             <template #header>
               <div class="flex items-center gap-2">
@@ -117,14 +128,13 @@ async function handleCopy() {
               </div>
             </template>
 
-            <p class="text-lg leading-relaxed whitespace-pre-wrap">{{ refiningText }}</p>
+            <p class="text-lg leading-relaxed whitespace-pre-wrap">
+              {{ refiningText }}
+            </p>
           </UCard>
         </div>
 
-        <div
-          v-if="lastResult"
-          class="w-full max-w-2xl"
-        >
+        <div v-if="lastResult" class="w-full max-w-2xl">
           <UCard>
             <template #header>
               <div class="flex items-center justify-between">
@@ -139,7 +149,9 @@ async function handleCopy() {
               </div>
             </template>
 
-            <p class="text-lg leading-relaxed whitespace-pre-wrap">{{ lastResult }}</p>
+            <p class="text-lg leading-relaxed whitespace-pre-wrap">
+              {{ lastResult }}
+            </p>
           </UCard>
         </div>
 

@@ -39,7 +39,7 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "resources": ["resources/ggml-large-v3-turbo.bin"]
+    "resources": []
   },
   "plugins": {
     "shell": {
