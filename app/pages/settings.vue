@@ -3,73 +3,64 @@ definePageMeta({
   layout: 'dashboard'
 })
 
-const { settings, loading, fetchSettings, updateSetting, getSettingValue } = useSettings()
-const { providers, isTestingConnection, connectionStatus, getProviders, testSpecificProvider } = useAI()
+const { fetchSettings, updateSetting, getSettingValue } = useSettings()
+const { providers, isTestingConnection, getProviders, testSpecificProvider } = useAI()
+const { getActiveModel, reloadModel } = useModels()
 const toast = useToast()
+
+const activeModel = ref(null)
+const isSaving = ref(false)
+const hasChanges = ref(false)
+
+const form = reactive({
+  shortcut: 'Z + Z',
+  language: 'ar',
+  auto_punctuation: true,
+  sound_notifications: true,
+  auto_start: false,
+  auto_type: true,
+  max_recording_duration: 300,
+  ai_refinement: false,
+  ai_provider: 'local',
+  claude_api_key: '',
+  openai_api_key: '',
+  gemini_api_key: '',
+  grok_api_key: '',
+  use_gpu: false
+})
+
+const original = reactive({ ...form })
+
+function loadFormFromSettings() {
+  form.shortcut = getSettingValue('shortcut', 'Z + Z')
+  form.language = getSettingValue('language', 'ar')
+  form.auto_punctuation = getSettingValue('auto_punctuation', true)
+  form.sound_notifications = getSettingValue('sound_notifications', true)
+  form.auto_start = getSettingValue('auto_start', false)
+  form.auto_type = getSettingValue('auto_type', true)
+  form.max_recording_duration = getSettingValue('max_recording_duration', 300)
+  form.ai_refinement = getSettingValue('ai_refinement', false)
+  form.ai_provider = getSettingValue('ai_provider', 'local')
+  form.claude_api_key = getSettingValue('claude_api_key', '')
+  form.openai_api_key = getSettingValue('openai_api_key', '')
+  form.gemini_api_key = getSettingValue('gemini_api_key', '')
+  form.grok_api_key = getSettingValue('grok_api_key', '')
+  const gpuVal = getSettingValue('use_gpu', false)
+  form.use_gpu = gpuVal === true || gpuVal === 'true'
+  Object.assign(original, form)
+}
+
+watch(form, () => {
+  hasChanges.value = JSON.stringify(form) !== JSON.stringify(original)
+}, { deep: true })
 
 onMounted(async () => {
   await fetchSettings()
   await getProviders()
-})
-
-const shortcut = computed({
-  get: () => getSettingValue('shortcut', 'Z + Z'),
-  set: (val) => updateSetting('shortcut', JSON.stringify(val))
-})
-
-const language = computed({
-  get: () => getSettingValue('language', 'ar'),
-  set: (val) => updateSetting('language', JSON.stringify(val))
-})
-
-const autoPunctuation = computed({
-  get: () => getSettingValue('auto_punctuation', true),
-  set: (val) => updateSetting('auto_punctuation', String(val))
-})
-
-const soundNotifications = computed({
-  get: () => getSettingValue('sound_notifications', true),
-  set: (val) => updateSetting('sound_notifications', String(val))
-})
-
-const autoStart = computed({
-  get: () => getSettingValue('auto_start', false),
-  set: (val) => updateSetting('auto_start', String(val))
-})
-
-const autoType = computed({
-  get: () => getSettingValue('auto_type', true),
-  set: (val) => updateSetting('auto_type', String(val))
-})
-
-const maxDuration = computed({
-  get: () => getSettingValue('max_recording_duration', 300),
-  set: (val) => updateSetting('max_recording_duration', String(val))
-})
-
-const aiRefinement = computed({
-  get: () => getSettingValue('ai_refinement', false),
-  set: (val) => updateSetting('ai_refinement', String(val))
-})
-
-const aiProvider = computed({
-  get: () => getSettingValue('ai_provider', 'local'),
-  set: (val) => updateSetting('ai_provider', val)
-})
-
-const claudeApiKey = computed({
-  get: () => getSettingValue('claude_api_key', ''),
-  set: (val) => updateSetting('claude_api_key', val)
-})
-
-const openaiApiKey = computed({
-  get: () => getSettingValue('openai_api_key', ''),
-  set: (val) => updateSetting('openai_api_key', val)
-})
-
-const geminiApiKey = computed({
-  get: () => getSettingValue('gemini_api_key', ''),
-  set: (val) => updateSetting('gemini_api_key', val)
+  loadFormFromSettings()
+  try {
+    activeModel.value = await getActiveModel()
+  } catch {}
 })
 
 const languageOptions = [
@@ -91,26 +82,23 @@ const providerOptions = computed(() => {
   }))
 })
 
-const currentProviderRequiresKey = computed(() => {
-  const provider = providers.value.find(p => p.id === aiProvider.value)
-  return provider?.requires_key ?? false
-})
-
 const currentApiKey = computed(() => {
-  switch (aiProvider.value) {
+  switch (form.ai_provider) {
     case 'claude':
-      return claudeApiKey.value
+      return form.claude_api_key
     case 'openai':
-      return openaiApiKey.value
+      return form.openai_api_key
     case 'gemini':
-      return geminiApiKey.value
+      return form.gemini_api_key
+    case 'grok':
+      return form.grok_api_key
     default:
       return ''
   }
 })
 
 async function testConnection() {
-  const result = await testSpecificProvider(aiProvider.value, currentApiKey.value)
+  const result = await testSpecificProvider(form.ai_provider, currentApiKey.value)
   if (result.success) {
     toast.add({
       title: result.message,
@@ -127,8 +115,68 @@ async function testConnection() {
   }
 }
 
-function handleSave() {
-  toast.add({ title: 'تم حفظ الإعدادات', icon: 'i-lucide-check', color: 'success' })
+async function handleSave() {
+  isSaving.value = true
+  try {
+    const gpuChanged = String(form.use_gpu) !== String(original.use_gpu)
+
+    const settingsMap = {
+      shortcut: JSON.stringify(form.shortcut),
+      language: JSON.stringify(form.language),
+      auto_punctuation: String(form.auto_punctuation),
+      sound_notifications: String(form.sound_notifications),
+      auto_start: String(form.auto_start),
+      auto_type: String(form.auto_type),
+      max_recording_duration: String(form.max_recording_duration),
+      ai_refinement: String(form.ai_refinement),
+      ai_provider: form.ai_provider,
+      claude_api_key: form.claude_api_key,
+      openai_api_key: form.openai_api_key,
+      gemini_api_key: form.gemini_api_key,
+      grok_api_key: form.grok_api_key,
+      use_gpu: String(form.use_gpu)
+    }
+
+    for (const [key, value] of Object.entries(settingsMap)) {
+      await updateSetting(key, value)
+    }
+
+    if (gpuChanged) {
+      try {
+        await reloadModel()
+        toast.add({
+          title: 'تم حفظ الإعدادات وإعادة تحميل النموذج',
+          icon: 'i-lucide-check',
+          color: 'success'
+        })
+      } catch {
+        toast.add({
+          title: 'تم حفظ الإعدادات',
+          description: 'لم يتم إعادة تحميل النموذج - تأكد من وجود نموذج نشط',
+          icon: 'i-lucide-alert-triangle',
+          color: 'warning'
+        })
+      }
+    } else {
+      toast.add({
+        title: 'تم حفظ الإعدادات',
+        icon: 'i-lucide-check',
+        color: 'success'
+      })
+    }
+
+    Object.assign(original, form)
+    hasChanges.value = false
+  } catch (e) {
+    toast.add({
+      title: 'خطأ في حفظ الإعدادات',
+      description: String(e),
+      icon: 'i-lucide-alert-circle',
+      color: 'error'
+    })
+  } finally {
+    isSaving.value = false
+  }
 }
 </script>
 
@@ -138,6 +186,16 @@ function handleSave() {
       <UDashboardNavbar title="الإعدادات">
         <template #leading>
           <UDashboardSidebarCollapse />
+        </template>
+        <template #trailing>
+          <UButton
+            icon="i-lucide-save"
+            :loading="isSaving"
+            :disabled="!hasChanges"
+            @click="handleSave"
+          >
+            حفظ الإعدادات
+          </UButton>
         </template>
       </UDashboardNavbar>
     </template>
@@ -157,7 +215,7 @@ function handleSave() {
 
           <UFormField label="اختصار بدء/إيقاف الإملاء">
             <UInput
-              :model-value="shortcut"
+              :model-value="form.shortcut"
               icon="i-lucide-command"
               readonly
               placeholder="Ctrl+Shift+D"
@@ -179,30 +237,61 @@ function handleSave() {
           <div class="space-y-4">
             <UFormField label="لغة الإملاء">
               <USelect
-                :model-value="language"
+                v-model="form.language"
                 :items="languageOptions"
                 value-key="value"
-                @update:model-value="language = $event"
               />
             </UFormField>
 
             <UFormField label="مدة التسجيل القصوى">
               <USelect
-                :model-value="maxDuration"
+                v-model="form.max_recording_duration"
                 :items="durationOptions"
                 value-key="value"
-                @update:model-value="maxDuration = $event"
               />
             </UFormField>
 
             <UFormField label="نموذج Whisper">
               <UInput
-                model-value="Whisper Large V3 Turbo"
+                :model-value="activeModel?.name || 'لم يتم تحديد نموذج'"
                 icon="i-lucide-brain"
                 readonly
                 disabled
               />
             </UFormField>
+          </div>
+        </UCard>
+
+        <UCard>
+          <template #header>
+            <div class="flex items-center gap-2">
+              <UIcon
+                name="i-lucide-cpu"
+                class="size-5"
+              />
+              <span class="font-semibold">الأداء</span>
+            </div>
+          </template>
+
+          <div class="space-y-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="font-medium">استخدام GPU (كرت الشاشة)</p>
+                <p class="text-sm text-muted">تسريع المعالجة باستخدام NVIDIA CUDA - يحتاج كرت شاشة NVIDIA</p>
+              </div>
+              <USwitch v-model="form.use_gpu" />
+            </div>
+
+            <div
+              v-if="form.use_gpu"
+              class="bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200 p-3 rounded-lg text-sm flex items-start gap-2"
+            >
+              <UIcon
+                name="i-lucide-alert-triangle"
+                class="size-4 mt-0.5 shrink-0"
+              />
+              <span>تأكد من وجود كرت شاشة NVIDIA مع تعريفات CUDA مثبتة. إذا لم يكن لديك، قم بتعطيل هذا الخيار لتجنب الأخطاء.</span>
+            </div>
           </div>
         </UCard>
 
@@ -223,10 +312,7 @@ function handleSave() {
                 <p class="font-medium">علامات الترقيم التلقائية</p>
                 <p class="text-sm text-muted">إضافة علامات الترقيم تلقائيًا للنص</p>
               </div>
-              <USwitch
-                :model-value="autoPunctuation"
-                @update:model-value="autoPunctuation = $event"
-              />
+              <USwitch v-model="form.auto_punctuation" />
             </div>
 
             <USeparator />
@@ -236,10 +322,7 @@ function handleSave() {
                 <p class="font-medium">الكتابة التلقائية</p>
                 <p class="text-sm text-muted">كتابة النص مباشرة في البرنامج النشط</p>
               </div>
-              <USwitch
-                :model-value="autoType"
-                @update:model-value="autoType = $event"
-              />
+              <USwitch v-model="form.auto_type" />
             </div>
 
             <USeparator />
@@ -249,10 +332,7 @@ function handleSave() {
                 <p class="font-medium">إشعارات صوتية</p>
                 <p class="text-sm text-muted">تشغيل صوت عند بدء وإيقاف الإملاء</p>
               </div>
-              <USwitch
-                :model-value="soundNotifications"
-                @update:model-value="soundNotifications = $event"
-              />
+              <USwitch v-model="form.sound_notifications" />
             </div>
 
             <USeparator />
@@ -262,10 +342,7 @@ function handleSave() {
                 <p class="font-medium">التشغيل التلقائي</p>
                 <p class="text-sm text-muted">تشغيل التطبيق عند بدء النظام</p>
               </div>
-              <USwitch
-                :model-value="autoStart"
-                @update:model-value="autoStart = $event"
-              />
+              <USwitch v-model="form.auto_start" />
             </div>
           </div>
         </UCard>
@@ -287,67 +364,76 @@ function handleSave() {
                 <p class="font-medium">تفعيل التحسين بالذكاء الاصطناعي</p>
                 <p class="text-sm text-muted">تصحيح الأخطاء وإضافة علامات الترقيم تلقائياً</p>
               </div>
-              <USwitch
-                :model-value="aiRefinement"
-                @update:model-value="aiRefinement = $event"
-              />
+              <USwitch v-model="form.ai_refinement" />
             </div>
 
-            <template v-if="aiRefinement">
+            <template v-if="form.ai_refinement">
               <USeparator />
 
               <UFormField label="مزود الذكاء الاصطناعي">
                 <USelect
-                  :model-value="aiProvider"
+                  v-model="form.ai_provider"
                   :items="providerOptions"
                   value-key="value"
-                  @update:model-value="aiProvider = $event"
                 />
               </UFormField>
 
-              <template v-if="aiProvider === 'claude'">
-                <UFormField label="مفتاح Claude API">
-                  <UInput
-                    :model-value="claudeApiKey"
-                    type="password"
-                    icon="i-lucide-key"
-                    placeholder="sk-ant-..."
-                    @update:model-value="claudeApiKey = $event"
-                  />
-                </UFormField>
-              </template>
+              <UFormField
+                v-if="form.ai_provider === 'claude'"
+                label="مفتاح Claude API"
+              >
+                <UInput
+                  v-model="form.claude_api_key"
+                  type="password"
+                  icon="i-lucide-key"
+                  placeholder="sk-ant-..."
+                />
+              </UFormField>
 
-              <template v-else-if="aiProvider === 'openai'">
-                <UFormField label="مفتاح OpenAI API">
-                  <UInput
-                    :model-value="openaiApiKey"
-                    type="password"
-                    icon="i-lucide-key"
-                    placeholder="sk-..."
-                    @update:model-value="openaiApiKey = $event"
-                  />
-                </UFormField>
-              </template>
+              <UFormField
+                v-else-if="form.ai_provider === 'openai'"
+                label="مفتاح OpenAI API"
+              >
+                <UInput
+                  v-model="form.openai_api_key"
+                  type="password"
+                  icon="i-lucide-key"
+                  placeholder="sk-..."
+                />
+              </UFormField>
 
-              <template v-else-if="aiProvider === 'gemini'">
-                <UFormField label="مفتاح Gemini API">
-                  <UInput
-                    :model-value="geminiApiKey"
-                    type="password"
-                    icon="i-lucide-key"
-                    placeholder="AIza..."
-                    @update:model-value="geminiApiKey = $event"
-                  />
-                </UFormField>
-              </template>
+              <UFormField
+                v-else-if="form.ai_provider === 'gemini'"
+                label="مفتاح Gemini API"
+              >
+                <UInput
+                  v-model="form.gemini_api_key"
+                  type="password"
+                  icon="i-lucide-key"
+                  placeholder="AIza..."
+                />
+              </UFormField>
 
-              <template v-else-if="aiProvider === 'local'">
-                <div class="bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-200 p-4 rounded-lg text-sm">
-                  <p>
-                    يتطلب تشغيل خادم محلي على المنفذ <code class="bg-blue-100 dark:bg-blue-800 px-1 rounded">8000</code>
-                  </p>
-                </div>
-              </template>
+              <UFormField
+                v-else-if="form.ai_provider === 'grok'"
+                label="مفتاح Grok API"
+              >
+                <UInput
+                  v-model="form.grok_api_key"
+                  type="password"
+                  icon="i-lucide-key"
+                  placeholder="xai-..."
+                />
+              </UFormField>
+
+              <div
+                v-else-if="form.ai_provider === 'local'"
+                class="bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-200 p-4 rounded-lg text-sm"
+              >
+                <p>
+                  يتطلب تشغيل خادم محلي على المنفذ <code class="bg-blue-100 dark:bg-blue-800 px-1 rounded">8000</code>
+                </p>
+              </div>
 
               <UButton
                 variant="soft"
@@ -360,6 +446,21 @@ function handleSave() {
             </template>
           </div>
         </UCard>
+
+        <div
+          v-if="hasChanges"
+          class="sticky bottom-4 flex justify-center"
+        >
+          <UButton
+            size="lg"
+            icon="i-lucide-save"
+            :loading="isSaving"
+            class="shadow-lg"
+            @click="handleSave"
+          >
+            حفظ الإعدادات
+          </UButton>
+        </div>
       </div>
     </template>
   </UDashboardPanel>

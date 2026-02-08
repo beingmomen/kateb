@@ -14,9 +14,9 @@ impl WhisperTranscriber {
         }
     }
 
-    pub fn load_model(&mut self, model_path: &PathBuf) -> Result<(), anyhow::Error> {
+    pub fn load_model(&mut self, model_path: &PathBuf, use_gpu: bool) -> Result<(), anyhow::Error> {
         let mut params = WhisperContextParameters::default();
-        params.use_gpu(true);
+        params.use_gpu(use_gpu);
         let ctx = WhisperContext::new_with_params(
             model_path.to_str().ok_or_else(|| anyhow::anyhow!("Invalid model path"))?,
             params,

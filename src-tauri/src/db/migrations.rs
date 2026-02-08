@@ -40,6 +40,9 @@ pub fn seed_default_settings(conn: &Connection) -> Result<(), Box<dyn std::error
         ("whisper_model", r#""large-v3""#),
         ("max_recording_duration", "300"),
         ("auto_type", "true"),
+        ("use_gpu", "false"),
+        ("ai_refinement", "false"),
+        ("ai_provider", "local"),
     ];
 
     for (key, value) in defaults {

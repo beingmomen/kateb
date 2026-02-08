@@ -68,8 +68,22 @@ pub fn get_ai_providers() -> serde_json::Value {
         {"id": "local", "name": "Local Server", "requires_key": false},
         {"id": "claude", "name": "Claude (Anthropic)", "requires_key": true},
         {"id": "openai", "name": "OpenAI (GPT-4)", "requires_key": true},
-        {"id": "gemini", "name": "Google Gemini", "requires_key": true}
+        {"id": "gemini", "name": "Google Gemini", "requires_key": true},
+        {"id": "grok", "name": "Grok (xAI)", "requires_key": true}
     ])
+}
+
+#[tauri::command]
+pub fn detect_gpu() -> serde_json::Value {
+    let cuda_available = std::process::Command::new("nvidia-smi")
+        .output()
+        .map(|output| output.status.success())
+        .unwrap_or(false);
+
+    serde_json::json!({
+        "cuda_available": cuda_available,
+        "recommended": if cuda_available { "gpu" } else { "cpu" }
+    })
 }
 
 #[tauri::command]

@@ -4,7 +4,7 @@
   "identifier": "com.arabic-voice-dictation.app",
   "build": {
     "beforeBuildCommand": "pnpm build",
-    "beforeDevCommand": "pnpm dev",
+    "beforeDevCommand": "fuser -k 3654/tcp 2>/dev/null; pnpm dev",
     "devUrl": "http://localhost:3654",
     "frontendDist": "../.output/public"
   },

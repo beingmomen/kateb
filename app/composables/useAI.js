@@ -81,6 +81,14 @@ export function useAI() {
     return provider?.requires_key ?? true
   }
 
+  async function detectGpu() {
+    try {
+      return await tauriInvoke('detect_gpu')
+    } catch {
+      return { cuda_available: false, recommended: 'cpu' }
+    }
+  }
+
   return {
     providers,
     currentProvider,
@@ -93,6 +101,7 @@ export function useAI() {
     testConnection,
     testSpecificProvider,
     getProviderName,
-    requiresApiKey
+    requiresApiKey,
+    detectGpu
   }
 }

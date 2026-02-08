@@ -1,72 +1,91 @@
 import { tauriInvoke, tauriListen } from '~/utils/tauri'
 
 export function useModels() {
-  const modelExists = ref(false)
-  const modelInfo = ref(null)
+  const availableModels = ref([])
+  const activeModel = ref(null)
   const isDownloading = ref(false)
+  const downloadingModelId = ref(null)
   const downloadProgress = ref(0)
   const downloadedBytes = ref(0)
   const totalBytes = ref(0)
   const error = ref(null)
   const isLoading = ref(false)
 
-  async function checkModel() {
+  async function getAvailableModels() {
     isLoading.value = true
     try {
-      modelExists.value = await tauriInvoke('check_model_exists')
-      return modelExists.value
+      const models = await tauriInvoke('get_available_models')
+      availableModels.value = models || []
+      return availableModels.value
     } catch (e) {
       error.value = e
-      return false
+      return []
     } finally {
       isLoading.value = false
     }
   }
 
-  async function getModelInfo() {
-    isLoading.value = true
+  async function getActiveModel() {
     try {
-      modelInfo.value = await tauriInvoke('get_model_info')
-      modelExists.value = modelInfo.value?.exists ?? false
-      return modelInfo.value
+      activeModel.value = await tauriInvoke('get_active_model')
+      return activeModel.value
     } catch (e) {
       error.value = e
       return null
-    } finally {
-      isLoading.value = false
     }
   }
 
-  async function downloadModel() {
+  async function hasActiveModel() {
+    try {
+      return await tauriInvoke('has_active_model')
+    } catch (e) {
+      return false
+    }
+  }
+
+  async function downloadModel(modelId) {
     isDownloading.value = true
+    downloadingModelId.value = modelId
     downloadProgress.value = 0
+    downloadedBytes.value = 0
     error.value = null
     try {
-      const path = await tauriInvoke('download_model')
-      modelExists.value = true
+      const path = await tauriInvoke('download_specific_model', { modelId })
+      await getAvailableModels()
       return path
     } catch (e) {
       error.value = e
       throw e
     } finally {
       isDownloading.value = false
+      downloadingModelId.value = null
     }
   }
 
-  async function deleteModel() {
+  async function setActiveModel(modelId) {
     try {
-      await tauriInvoke('delete_model')
-      modelExists.value = false
-      modelInfo.value = null
+      await tauriInvoke('set_active_model', { modelId })
+      await getActiveModel()
     } catch (e) {
       error.value = e
       throw e
     }
   }
 
-  async function loadModel() {
+  async function deleteModel(modelId) {
     try {
-      await tauriInvoke('load_model')
+      await tauriInvoke('delete_model', { modelId })
+      await getAvailableModels()
+      await getActiveModel()
+    } catch (e) {
+      error.value = e
+      throw e
+    }
+  }
+
+  async function reloadModel() {
+    try {
+      await tauriInvoke('reload_model')
     } catch (e) {
       error.value = e
       throw e
@@ -74,17 +93,17 @@ export function useModels() {
   }
 
   function formatBytes(bytes) {
-    if (bytes === 0) return '0 Bytes'
+    if (bytes === 0) return '0 B'
     const k = 1024
-    const sizes = ['Bytes', 'KB', 'MB', 'GB']
+    const sizes = ['B', 'KB', 'MB', 'GB']
     const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
   }
 
   let unlistenProgress = null
   let unlistenStatus = null
 
-  onMounted(async () => {
+  async function setupListeners() {
     unlistenProgress = await tauriListen('model-download-progress', (event) => {
       downloadProgress.value = event.payload.progress
       downloadedBytes.value = event.payload.downloaded
@@ -96,35 +115,38 @@ export function useModels() {
         isDownloading.value = true
         downloadProgress.value = 0
       } else if (event.payload.status === 'completed') {
-        isDownloading.value = false
         downloadProgress.value = 100
-        modelExists.value = true
       } else if (event.payload.status === 'error') {
-        isDownloading.value = false
         error.value = event.payload.message
       }
     })
-  })
+  }
 
-  onUnmounted(() => {
+  function cleanupListeners() {
     if (unlistenProgress) unlistenProgress()
     if (unlistenStatus) unlistenStatus()
-  })
+  }
+
+  onMounted(setupListeners)
+  onUnmounted(cleanupListeners)
 
   return {
-    modelExists,
-    modelInfo,
+    availableModels,
+    activeModel,
     isDownloading,
+    downloadingModelId,
     downloadProgress,
     downloadedBytes,
     totalBytes,
     error,
     isLoading,
-    checkModel,
-    getModelInfo,
+    getAvailableModels,
+    getActiveModel,
+    hasActiveModel,
     downloadModel,
+    setActiveModel,
     deleteModel,
-    loadModel,
+    reloadModel,
     formatBytes
   }
 }

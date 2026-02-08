@@ -32,6 +32,7 @@ pub enum AIProvider {
     Claude,
     OpenAI,
     Gemini,
+    Grok,
     Local,
 }
 
@@ -41,6 +42,7 @@ impl AIProvider {
             "claude" => AIProvider::Claude,
             "openai" => AIProvider::OpenAI,
             "gemini" => AIProvider::Gemini,
+            "grok" => AIProvider::Grok,
             "local" | _ => AIProvider::Local,
         }
     }
@@ -50,6 +52,7 @@ impl AIProvider {
             AIProvider::Claude => "claude",
             AIProvider::OpenAI => "openai",
             AIProvider::Gemini => "gemini",
+            AIProvider::Grok => "grok",
             AIProvider::Local => "local",
         }
     }

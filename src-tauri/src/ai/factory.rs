@@ -1,5 +1,5 @@
 use crate::ai::provider::{AIProvider, AIRefiner};
-use crate::ai::providers::{ClaudeRefiner, GeminiRefiner, LocalRefiner, OpenAIRefiner};
+use crate::ai::providers::{ClaudeRefiner, GeminiRefiner, GrokRefiner, LocalRefiner, OpenAIRefiner};
 use crate::db::Database;
 use crate::error::AppError;
 use std::sync::Arc;
@@ -26,6 +26,12 @@ impl AIFactory {
                     AppError::AIError("Gemini API key is required".to_string())
                 })?;
                 Ok(Arc::new(GeminiRefiner::new(key)))
+            }
+            AIProvider::Grok => {
+                let key = api_key.ok_or_else(|| {
+                    AppError::AIError("Grok API key is required".to_string())
+                })?;
+                Ok(Arc::new(GrokRefiner::new(key)))
             }
             AIProvider::Local => Ok(Arc::new(LocalRefiner::new())),
         }
@@ -64,6 +70,14 @@ impl AIFactory {
             AIProvider::Gemini => conn
                 .query_row(
                     "SELECT value FROM settings WHERE key = 'gemini_api_key'",
+                    [],
+                    |row| row.get::<_, String>(0),
+                )
+                .ok()
+                .filter(|k| !k.is_empty()),
+            AIProvider::Grok => conn
+                .query_row(
+                    "SELECT value FROM settings WHERE key = 'grok_api_key'",
                     [],
                     |row| row.get::<_, String>(0),
                 )

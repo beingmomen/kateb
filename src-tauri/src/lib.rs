@@ -32,22 +32,38 @@ pub fn run() {
 
             let mut transcriber = whisper::transcriber::WhisperTranscriber::new();
 
-            let model_path = models::ModelDownloader::get_model_path(&app_handle)
-                .map(|p| p.to_path_buf())
-                .ok();
+            let (active_model_id, use_gpu) = {
+                let db_state: tauri::State<'_, db::Database> = app.state();
+                let conn = db_state.0.lock().unwrap();
+                let model_id = conn.query_row(
+                    "SELECT value FROM settings WHERE key = 'active_model'",
+                    [],
+                    |row| row.get::<_, String>(0),
+                )
+                .unwrap_or_default();
+                let gpu = conn.query_row(
+                    "SELECT value FROM settings WHERE key = 'use_gpu'",
+                    [],
+                    |row| row.get::<_, String>(0),
+                )
+                .unwrap_or_else(|_| "false".to_string()) == "true";
+                (model_id, gpu)
+            };
 
-            if let Some(ref path) = model_path {
-                if path.exists() {
-                    if let Err(e) = transcriber.load_model(path) {
-                        eprintln!("[model] Warning: Failed to load Whisper model: {}", e);
+            if !active_model_id.is_empty() {
+                if let Ok(path) = models::ModelDownloader::get_model_path_by_id(&app_handle, &active_model_id) {
+                    if path.exists() {
+                        if let Err(e) = transcriber.load_model(&path, use_gpu) {
+                            eprintln!("[model] Warning: Failed to load '{}': {}", active_model_id, e);
+                        } else {
+                            eprintln!("[model] Loaded active model '{}' (GPU: {}): {:?}", active_model_id, use_gpu, path);
+                        }
                     } else {
-                        eprintln!("[model] Model loaded successfully: {:?}", path);
+                        eprintln!("[model] Active model '{}' not found at {:?}", active_model_id, path);
                     }
-                } else {
-                    eprintln!("[model] Model not found at {:?}, will need to download", path);
                 }
             } else {
-                eprintln!("[model] Could not determine model path");
+                eprintln!("[model] No active model set, user needs to download one");
             }
 
             app.manage(DictationState {
@@ -101,16 +117,20 @@ pub fn run() {
             commands::history::clear_history,
             commands::history::get_usage_stats,
             commands::history::get_summary_stats,
+            commands::models::get_available_models,
+            commands::models::download_specific_model,
+            commands::models::get_active_model,
+            commands::models::set_active_model,
             commands::models::check_model_exists,
-            commands::models::download_model,
-            commands::models::get_model_path,
             commands::models::delete_model,
-            commands::models::get_model_info,
-            commands::models::load_model,
+            commands::models::check_any_model_installed,
+            commands::models::has_active_model,
+            commands::models::reload_model,
             commands::ai::test_ai_connection,
             commands::ai::test_specific_provider,
             commands::ai::get_ai_providers,
             commands::ai::get_current_ai_provider,
+            commands::ai::detect_gpu,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
