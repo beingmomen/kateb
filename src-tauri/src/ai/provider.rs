@@ -72,15 +72,6 @@ impl AIProvider {
         }
     }
 
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            AIProvider::Claude => "claude",
-            AIProvider::OpenAI => "openai",
-            AIProvider::Gemini => "gemini",
-            AIProvider::Grok => "grok",
-            AIProvider::Local => "local",
-        }
-    }
 }
 
 #[async_trait]

@@ -2,7 +2,7 @@ use crate::commands::dictation::DictationState;
 use crate::constants::model::{self, AVAILABLE_MODELS};
 use crate::db::Database;
 use crate::models::ModelDownloader;
-use tauri::{Manager, State};
+use tauri::State;
 
 #[tauri::command]
 pub fn get_available_models(app: tauri::AppHandle) -> Result<serde_json::Value, String> {

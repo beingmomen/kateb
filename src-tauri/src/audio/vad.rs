@@ -72,8 +72,4 @@ impl AdaptiveVAD {
         self.silence_frames as f32 * samples_per_frame / SAMPLE_RATE as f32
     }
 
-    pub fn is_speech(&self, audio: &[f32]) -> bool {
-        let rms = Self::compute_rms(audio);
-        rms > self.speech_threshold
-    }
 }

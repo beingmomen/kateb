@@ -1,4 +1,4 @@
-use crate::constants::model::{self, ModelInfo};
+use crate::constants::model;
 use crate::error::AppError;
 use futures_util::StreamExt;
 use reqwest::Client;
@@ -31,28 +31,6 @@ impl ModelDownloader {
             .ok_or_else(|| AppError::DownloadError(format!("Unknown model: {}", model_id)))?;
         let model_dir = Self::get_model_dir(app)?;
         Ok(model_dir.join(info.filename))
-    }
-
-    pub fn get_model_path(app: &tauri::AppHandle) -> Result<PathBuf, AppError> {
-        let model_dir = Self::get_model_dir(app)?;
-        Ok(model_dir.join(
-            model::find_model(model::DEFAULT_MODEL_ID)
-                .map(|m| m.filename)
-                .unwrap_or("ggml-large-v3-turbo.bin"),
-        ))
-    }
-
-    pub async fn check_model_exists_by_id(app: &tauri::AppHandle, model_id: &str) -> Result<bool, AppError> {
-        let path = Self::get_model_path_by_id(app, model_id)?;
-        if !path.exists() {
-            return Ok(false);
-        }
-        let info = model::find_model(model_id)
-            .ok_or_else(|| AppError::DownloadError(format!("Unknown model: {}", model_id)))?;
-        let metadata = fs::metadata(&path)
-            .await
-            .map_err(|e| AppError::DownloadError(e.to_string()))?;
-        Ok(metadata.len() >= info.size_bytes / 2)
     }
 
     pub async fn check_model_exists(app: &tauri::AppHandle) -> Result<bool, AppError> {

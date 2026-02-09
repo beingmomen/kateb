@@ -4,8 +4,6 @@ pub mod audio {
     pub const CHUNK_SAMPLES: usize = (16000.0 * CHUNK_DURATION_SECS) as usize;
     pub const OVERLAP_SAMPLES: usize = (16000.0 * 0.75) as usize;
     pub const POLL_INTERVAL_MS: u64 = 250;
-    pub const STREAMING_SILENCE_RMS: f32 = 0.003;
-    pub const MAX_BUFFER_SAMPLES: usize = 16000 * 600;
     pub const AUTO_STOP_SILENCE_SECS: f32 = 5.0;
 }
 
@@ -34,7 +32,6 @@ pub mod model {
     use serde::Serialize;
 
     pub const HUGGINGFACE_BASE: &str = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main";
-    pub const DEFAULT_MODEL_ID: &str = "large-v3-turbo";
 
     #[derive(Debug, Clone, Serialize)]
     pub struct ModelInfo {
@@ -137,10 +134,8 @@ pub mod model {
 }
 
 pub mod ai {
-    pub const DEFAULT_PROVIDER: &str = "local";
     pub const CLAUDE_API_URL: &str = "https://api.anthropic.com/v1/messages";
     pub const OPENAI_API_URL: &str = "https://api.openai.com/v1/chat/completions";
-    pub const GEMINI_API_URL: &str = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
     pub const LOCAL_API_URL: &str = "http://localhost:8000/v1/chat/completions";
     pub const GROK_API_URL: &str = "https://api.x.ai/v1/chat/completions";
 }
