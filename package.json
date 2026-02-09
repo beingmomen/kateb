@@ -1,7 +1,36 @@
 {
-  "name": "arabic-voice-dictation-1",
-  "private": true,
+  "name": "kateb",
+  "version": "1.0.0",
+  "private": false,
   "type": "module",
+  "description": "Kateb - Smart Arabic & English voice dictation desktop app powered by Whisper AI. تطبيق إملاء صوتي ذكي يحول الكلام إلى نص.",
+  "author": "Abdelmomen Elshatory <beingmomen@gmail.com> (https://github.com/beingmomen)",
+  "license": "MIT",
+  "homepage": "https://github.com/beingmomen/kateb",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/beingmomen/kateb.git"
+  },
+  "bugs": {
+    "url": "https://github.com/beingmomen/kateb/issues"
+  },
+  "keywords": [
+    "arabic",
+    "voice-dictation",
+    "speech-to-text",
+    "whisper",
+    "stt",
+    "tauri",
+    "desktop-app",
+    "offline",
+    "ai",
+    "kateb",
+    "إملاء",
+    "صوتي",
+    "عربي",
+    "كاتب",
+    "تحويل-صوت-لنص"
+  ],
   "scripts": {
     "build": "nuxt build",
     "dev": "nuxt dev",

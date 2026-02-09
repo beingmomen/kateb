@@ -1,7 +1,7 @@
 {
-  "productName": "arabic-voice-dictation",
-  "version": "0.1.0",
-  "identifier": "com.arabic-voice-dictation.app",
+  "productName": "Kateb",
+  "version": "1.0.0",
+  "identifier": "com.beingmomen.kateb",
   "build": {
     "beforeBuildCommand": "pnpm build",
     "beforeDevCommand": "fuser -k 3654/tcp 2>/dev/null; pnpm dev",
@@ -14,7 +14,7 @@
     },
     "windows": [
       {
-        "title": "إملاء صوتي عربي",
+        "title": "كاتِب — إملاء صوتي ذكي",
         "width": 1200,
         "height": 800,
         "resizable": true,
@@ -24,7 +24,7 @@
     ],
     "trayIcon": {
       "iconPath": "icons/icon.png",
-      "tooltip": "إملاء صوتي عربي",
+      "tooltip": "كاتِب",
       "id": "main",
       "menuOnLeftClick": true
     }

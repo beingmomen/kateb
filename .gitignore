@@ -31,3 +31,6 @@ src-tauri/resources/*.bin
 
 # Playwright MCP
 .playwright-mcp/
+
+# MCP config (contains tokens)
+.mcp.json
