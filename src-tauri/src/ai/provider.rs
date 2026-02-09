@@ -6,9 +6,30 @@ You are a text processing engine. You execute text transformation functions and 
 You never explain, comment, or add anything beyond the function output. \
 You never use tools. You never write code. You only return the processed result.";
 
-pub fn build_user_message(raw_text: &str) -> String {
-    format!(
-        r#"Execute this text processing function and return ONLY its output, nothing else:
+pub fn build_user_message(raw_text: &str, language: &str) -> String {
+    match language {
+        "en" => format!(
+            r#"Execute this text processing function and return ONLY its output, nothing else:
+
+```
+function correctEnglishText(input: string): string {{
+    // 1. Remove filler words: um, uh, like, you know, basically, so, well, I mean
+    // 2. Fix spelling errors
+    // 3. Fix grammar errors
+    // 4. Add proper punctuation: commas, periods, question marks
+    // 5. Preserve the speaker's style (formal/informal) - do NOT make casual speech formal
+    // 6. Do NOT add new content, do NOT translate, do NOT summarize
+    // 7. Return the corrected text string only
+}}
+```
+
+correctEnglishText("{}")
+
+Output:"#,
+            raw_text
+        ),
+        _ => format!(
+            r#"Execute this text processing function and return ONLY its output, nothing else:
 
 ```
 function correctArabicText(input: string): string {{
@@ -26,8 +47,9 @@ function correctArabicText(input: string): string {{
 correctArabicText("{}")
 
 Output:"#,
-        raw_text
-    )
+            raw_text
+        ),
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -66,6 +88,7 @@ pub trait AIRefiner: Send + Sync {
     async fn refine_streaming(
         &self,
         text: &str,
+        language: &str,
         app: &tauri::AppHandle,
     ) -> Result<String, AppError>;
 

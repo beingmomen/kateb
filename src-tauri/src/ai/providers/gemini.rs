@@ -68,6 +68,7 @@ impl AIRefiner for GeminiRefiner {
     async fn refine_streaming(
         &self,
         text: &str,
+        language: &str,
         app: &tauri::AppHandle,
     ) -> Result<String, AppError> {
         if text.trim().is_empty() {
@@ -77,7 +78,7 @@ impl AIRefiner for GeminiRefiner {
         eprintln!("[gemini] Sending text for refinement: '{}'", text);
         let _ = app.emit("ai-refine-status", json!({ "status": "started" }));
 
-        let user_message = build_user_message(text);
+        let user_message = build_user_message(text, language);
         let url = self.build_url(true);
 
         let response = self

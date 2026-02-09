@@ -345,6 +345,18 @@ async fn refine_with_ai(
         return RefinementResult { text: text.to_string(), ai_provider: String::new(), processing_time_ms: 0 };
     }
 
+    let language = {
+        let conn = db.0.lock().unwrap();
+        conn.query_row(
+            "SELECT value FROM settings WHERE key = 'language'",
+            [],
+            |row| row.get::<_, String>(0),
+        )
+        .unwrap_or_else(|_| "\"ar\"".to_string())
+        .trim_matches('"')
+        .to_string()
+    };
+
     let refiner = match AIFactory::create_from_settings(db) {
         Ok(r) => r,
         Err(e) => {
@@ -354,10 +366,10 @@ async fn refine_with_ai(
     };
 
     let provider_name = refiner.provider_name().to_string();
-    eprintln!("[ai] AI refinement enabled, using {}...", provider_name);
+    eprintln!("[ai] AI refinement enabled, using {} (language: {})...", provider_name, language);
 
     let ai_start = std::time::Instant::now();
-    let result = match refiner.refine_streaming(text, app).await {
+    let result = match refiner.refine_streaming(text, &language, app).await {
         Ok(refined) if !refined.trim().is_empty() => {
             eprintln!("[ai] Refinement successful");
             refined
@@ -461,6 +473,7 @@ fn emit_final_result(
 #[tauri::command]
 pub async fn start_dictation(
     state: State<'_, DictationState>,
+    db: State<'_, Database>,
     app: tauri::AppHandle,
 ) -> Result<(), String> {
     let mut is_recording = state.is_recording.lock().map_err(|e| e.to_string())?;
@@ -471,6 +484,22 @@ pub async fn start_dictation(
     {
         let mut acc = state.accumulated_text.lock().map_err(|e| e.to_string())?;
         acc.clear();
+    }
+
+    {
+        let conn = db.0.lock().map_err(|e| e.to_string())?;
+        let lang = conn
+            .query_row(
+                "SELECT value FROM settings WHERE key = 'language'",
+                [],
+                |row| row.get::<_, String>(0),
+            )
+            .unwrap_or_else(|_| "\"ar\"".to_string())
+            .trim_matches('"')
+            .to_string();
+        let mut transcriber = state.transcriber.lock().map_err(|e| e.to_string())?;
+        transcriber.set_language(&lang);
+        eprintln!("[dictation] Language set to: {}", lang);
     }
 
     let recorder = state.recorder.lock().map_err(|e| e.to_string())?;

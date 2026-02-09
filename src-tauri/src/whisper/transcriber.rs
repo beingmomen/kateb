@@ -30,7 +30,11 @@ impl WhisperTranscriber {
         self.language.clone()
     }
 
-    fn apply_anti_hallucination(params: &mut FullParams) {
+    pub fn set_language(&mut self, lang: &str) {
+        self.language = lang.to_string();
+    }
+
+    fn apply_anti_hallucination(params: &mut FullParams, language: &str) {
         params.set_suppress_blank(true);
         params.set_suppress_nst(true);
         params.set_no_speech_thold(0.6);
@@ -38,7 +42,11 @@ impl WhisperTranscriber {
         params.set_logprob_thold(-1.0);
         params.set_temperature(0.0);
         params.set_temperature_inc(0.0);
-        params.set_initial_prompt("إملاء صوتي باللغة العربية الفصحى والعامية. النص يحتوي على جمل كاملة مع علامات ترقيم صحيحة، ولا يحتوي على أناشيد أو موسيقى أو ترجمات.");
+        let initial_prompt = match language {
+            "en" => "Voice dictation in English. The text contains complete sentences with proper punctuation. No songs, music, or subtitles.",
+            _ => "إملاء صوتي باللغة العربية الفصحى والعامية. النص يحتوي على جمل كاملة مع علامات ترقيم صحيحة، ولا يحتوي على أناشيد أو موسيقى أو ترجمات.",
+        };
+        params.set_initial_prompt(initial_prompt);
     }
 
     pub fn transcribe(&self, audio_data: &[f32]) -> Result<String, anyhow::Error> {
@@ -60,7 +68,7 @@ impl WhisperTranscriber {
         params.set_print_progress(true);
         params.set_print_realtime(false);
         params.set_print_special(false);
-        Self::apply_anti_hallucination(&mut params);
+        Self::apply_anti_hallucination(&mut params, &self.language);
 
         eprintln!("[whisper] Running transcription with best_of=3 (language: {})...", self.language);
         let start = std::time::Instant::now();
@@ -104,7 +112,7 @@ impl WhisperTranscriber {
         params.set_print_realtime(false);
         params.set_print_special(false);
         params.set_no_context(true);
-        Self::apply_anti_hallucination(&mut params);
+        Self::apply_anti_hallucination(&mut params, &self.language);
 
         state
             .full(params, audio_chunk)
