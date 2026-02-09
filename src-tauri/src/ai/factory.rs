@@ -7,33 +7,33 @@ use std::sync::Arc;
 pub struct AIFactory;
 
 impl AIFactory {
-    pub fn create(provider: AIProvider, api_key: Option<String>) -> Result<Arc<dyn AIRefiner>, AppError> {
+    pub fn create(provider: AIProvider, api_key: Option<String>, base_url: Option<String>) -> Result<Arc<dyn AIRefiner>, AppError> {
         match provider {
             AIProvider::Claude => {
                 let key = api_key.ok_or_else(|| {
                     AppError::AIError("Claude API key is required".to_string())
                 })?;
-                Ok(Arc::new(ClaudeRefiner::new(key)))
+                Ok(Arc::new(ClaudeRefiner::new(key, base_url)))
             }
             AIProvider::OpenAI => {
                 let key = api_key.ok_or_else(|| {
                     AppError::AIError("OpenAI API key is required".to_string())
                 })?;
-                Ok(Arc::new(OpenAIRefiner::new(key)))
+                Ok(Arc::new(OpenAIRefiner::new(key, base_url)))
             }
             AIProvider::Gemini => {
                 let key = api_key.ok_or_else(|| {
                     AppError::AIError("Gemini API key is required".to_string())
                 })?;
-                Ok(Arc::new(GeminiRefiner::new(key)))
+                Ok(Arc::new(GeminiRefiner::new(key, base_url)))
             }
             AIProvider::Grok => {
                 let key = api_key.ok_or_else(|| {
                     AppError::AIError("Grok API key is required".to_string())
                 })?;
-                Ok(Arc::new(GrokRefiner::new(key)))
+                Ok(Arc::new(GrokRefiner::new(key, base_url)))
             }
-            AIProvider::Local => Ok(Arc::new(LocalRefiner::new())),
+            AIProvider::Local => Ok(Arc::new(LocalRefiner::new(api_key, base_url))),
         }
     }
 
@@ -83,9 +83,28 @@ impl AIFactory {
                 )
                 .ok()
                 .filter(|k| !k.is_empty()),
-            AIProvider::Local => None,
+            AIProvider::Local => conn
+                .query_row(
+                    "SELECT value FROM settings WHERE key = 'local_api_key'",
+                    [],
+                    |row| row.get::<_, String>(0),
+                )
+                .ok()
+                .filter(|k| !k.is_empty()),
         };
 
-        Self::create(provider, api_key)
+        let url_key = format!("{}_api_url", provider_str);
+        let base_url = conn
+            .query_row(
+                "SELECT value FROM settings WHERE key = ?1",
+                [&url_key],
+                |row| row.get::<_, String>(0),
+            )
+            .ok()
+            .filter(|u| !u.is_empty());
+
+        eprintln!("[ai-factory] provider = '{}', url_key = '{}', base_url = {:?}, api_key present = {}", provider_str, url_key, base_url, api_key.is_some());
+
+        Self::create(provider, api_key, base_url)
     }
 }

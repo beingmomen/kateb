@@ -49,13 +49,14 @@ export function useAI() {
     }
   }
 
-  async function testSpecificProvider(provider, apiKey) {
+  async function testSpecificProvider(provider, apiKey, baseUrl) {
     isTestingConnection.value = true
     connectionStatus.value = null
     try {
       const result = await tauriInvoke('test_specific_provider', {
         provider,
-        apiKey: apiKey || ''
+        apiKey: apiKey || '',
+        baseUrl: baseUrl || null
       })
       connectionStatus.value = result
       return result

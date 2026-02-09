@@ -8,22 +8,31 @@ use serde_json::json;
 use tauri::Emitter;
 
 const LOCAL_MODEL: &str = "claude-sonnet-4-5-20250929";
+const LOCAL_API_PATH: &str = "/v1/chat/completions";
 
 pub struct LocalRefiner {
     client: Client,
+    api_key: Option<String>,
+    base_url: String,
 }
 
 impl LocalRefiner {
-    pub fn new() -> Self {
+    pub fn new(api_key: Option<String>, base_url: Option<String>) -> Self {
+        let url = match base_url {
+            Some(domain) => format!("{}{}", domain.trim().trim_end_matches('/'), LOCAL_API_PATH),
+            None => LOCAL_API_URL.to_string(),
+        };
         Self {
             client: Client::new(),
+            api_key,
+            base_url: url,
         }
     }
 }
 
 impl Default for LocalRefiner {
     fn default() -> Self {
-        Self::new()
+        Self::new(None, None)
     }
 }
 
@@ -34,10 +43,14 @@ impl AIRefiner for LocalRefiner {
     }
 
     async fn test_connection(&self) -> Result<bool, AppError> {
-        let response = self
+        let mut req = self
             .client
-            .post(LOCAL_API_URL)
-            .header("content-type", "application/json")
+            .post(&self.base_url)
+            .header("content-type", "application/json");
+        if let Some(ref key) = self.api_key {
+            req = req.header("Authorization", format!("Bearer {}", key));
+        }
+        let response = req
             .json(&json!({
                 "model": LOCAL_MODEL,
                 "max_tokens": 10,
@@ -47,7 +60,14 @@ impl AIRefiner for LocalRefiner {
             .await
             .map_err(|e| AppError::NetworkError(e.to_string()))?;
 
-        Ok(response.status().is_success())
+        if !response.status().is_success() {
+            return Ok(false);
+        }
+        let body = response.text().await.unwrap_or_default();
+        if body.contains("Invalid API key") || body.contains("Unauthorized") {
+            return Ok(false);
+        }
+        Ok(true)
     }
 
     async fn refine_streaming(
@@ -64,12 +84,16 @@ impl AIRefiner for LocalRefiner {
 
         let user_message = build_user_message(text);
 
-        let response = self
+        let mut req = self
             .client
-            .post(LOCAL_API_URL)
+            .post(&self.base_url)
             .header("content-type", "application/json")
             .header("X-Claude-Max-Turns", "1")
-            .header("X-Claude-Allowed-Tools", "")
+            .header("X-Claude-Allowed-Tools", "");
+        if let Some(ref key) = self.api_key {
+            req = req.header("Authorization", format!("Bearer {}", key));
+        }
+        let response = req
             .json(&json!({
                 "model": LOCAL_MODEL,
                 "max_tokens": 1024,
@@ -135,6 +159,16 @@ impl AIRefiner for LocalRefiner {
         }
 
         let refined = clean_refined_text(&full_text);
+
+        if refined.contains("Invalid API key")
+            || refined.contains("Unauthorized")
+            || refined.contains("Please run /login")
+        {
+            let _ = app.emit("ai-refine-status", json!({ "status": "error" }));
+            eprintln!("[local] Auth error in response: '{}'", refined);
+            return Err(AppError::AIError(format!("خطأ في المصادقة: {}", refined)));
+        }
+
         let _ = app.emit("ai-refine-status", json!({ "status": "done" }));
         eprintln!("[local] Refinement complete: '{}'", refined);
         Ok(refined)

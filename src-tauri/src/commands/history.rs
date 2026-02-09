@@ -6,9 +6,12 @@ fn map_dictation_row(row: &rusqlite::Row) -> rusqlite::Result<DictationEntry> {
     Ok(DictationEntry {
         id: row.get(0)?,
         text: row.get(1)?,
-        duration: row.get(2)?,
-        language: row.get(3)?,
-        created_at: row.get(4)?,
+        raw_text: row.get(2)?,
+        duration: row.get(3)?,
+        language: row.get(4)?,
+        ai_provider: row.get(5)?,
+        processing_time_ms: row.get(6)?,
+        created_at: row.get(7)?,
     })
 }
 
@@ -27,7 +30,7 @@ pub fn get_history(
         let pattern = format!("%{}%", query);
         let mut stmt = conn
             .prepare(
-                "SELECT id, text, duration, language, created_at
+                "SELECT id, text, raw_text, duration, language, ai_provider, processing_time_ms, created_at
                  FROM dictation_history
                  WHERE text LIKE ?1
                  ORDER BY created_at DESC
@@ -45,7 +48,7 @@ pub fn get_history(
     } else {
         let mut stmt = conn
             .prepare(
-                "SELECT id, text, duration, language, created_at
+                "SELECT id, text, raw_text, duration, language, ai_provider, processing_time_ms, created_at
                  FROM dictation_history
                  ORDER BY created_at DESC
                  LIMIT ?1 OFFSET ?2",

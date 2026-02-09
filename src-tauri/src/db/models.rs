@@ -12,8 +12,11 @@ pub struct Setting {
 pub struct DictationEntry {
     pub id: i64,
     pub text: String,
+    pub raw_text: String,
     pub duration: i64,
     pub language: String,
+    pub ai_provider: String,
+    pub processing_time_ms: i64,
     pub created_at: String,
 }
 

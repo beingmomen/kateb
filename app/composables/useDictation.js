@@ -15,8 +15,13 @@ export function useDictation() {
   const audioLevel = ref(0)
   const audioLevels = ref([])
   const recordingDuration = ref(0)
+  const processingDuration = ref(0)
+  const refiningDuration = ref(0)
+  const silenceCountdown = ref(null)
 
   let durationInterval = null
+  let processingInterval = null
+  let refiningInterval = null
 
   function startDurationTimer() {
     recordingDuration.value = 0
@@ -32,6 +37,34 @@ export function useDictation() {
     }
   }
 
+  function startProcessingTimer() {
+    processingDuration.value = 0
+    processingInterval = setInterval(() => {
+      processingDuration.value += 100
+    }, 100)
+  }
+
+  function stopProcessingTimer() {
+    if (processingInterval) {
+      clearInterval(processingInterval)
+      processingInterval = null
+    }
+  }
+
+  function startRefiningTimer() {
+    refiningDuration.value = 0
+    refiningInterval = setInterval(() => {
+      refiningDuration.value += 100
+    }, 100)
+  }
+
+  function stopRefiningTimer() {
+    if (refiningInterval) {
+      clearInterval(refiningInterval)
+      refiningInterval = null
+    }
+  }
+
   async function startDictation() {
     try {
       error.value = null
@@ -39,6 +72,9 @@ export function useDictation() {
       partialChunks.value = []
       audioLevels.value = []
       audioLevel.value = 0
+      refiningDuration.value = 0
+      processingDuration.value = 0
+      silenceCountdown.value = null
       await tauriInvoke('start_dictation')
       isRecording.value = true
       startDurationTimer()
@@ -51,17 +87,21 @@ export function useDictation() {
     if (isStopping.value) return
     isStopping.value = true
     stopDurationTimer()
+    isRecording.value = false
+    isProcessing.value = true
+    silenceCountdown.value = null
+    startProcessingTimer()
     try {
       error.value = null
       const text = await tauriInvoke('stop_dictation')
       lastResult.value = text
-      isRecording.value = false
       isProcessing.value = false
+      stopProcessingTimer()
       return text
     } catch (e) {
       error.value = e
-      isRecording.value = false
       isProcessing.value = false
+      stopProcessingTimer()
     } finally {
       isStopping.value = false
     }
@@ -95,6 +135,8 @@ export function useDictation() {
   let unlistenAudioLevel = null
   let unlistenRefineChunk = null
   let unlistenRefineStatus = null
+  let unlistenSilenceCountdown = null
+  let unlistenAutoStop = null
 
   onMounted(async () => {
     unlistenStatus = await tauriListen('dictation-status', (event) => {
@@ -140,14 +182,34 @@ export function useDictation() {
       if (event.payload.status === 'started') {
         isRefining.value = true
         refiningText.value = ''
+        stopProcessingTimer()
+        startRefiningTimer()
       } else if (event.payload.status === 'done' || event.payload.status === 'error') {
         isRefining.value = false
+        stopRefiningTimer()
+      }
+    })
+
+    unlistenSilenceCountdown = await tauriListen('silence-countdown', (event) => {
+      const { remaining, total } = event.payload
+      if (remaining < total - 1.0 && remaining >= 0) {
+        silenceCountdown.value = { remaining: Math.ceil(remaining), total }
+      } else {
+        silenceCountdown.value = null
+      }
+    })
+
+    unlistenAutoStop = await tauriListen('dictation-auto-stop', () => {
+      if (isRecording.value && !isStopping.value) {
+        stopDictation()
       }
     })
   })
 
   onUnmounted(() => {
     stopDurationTimer()
+    stopProcessingTimer()
+    stopRefiningTimer()
     if (unlistenStatus) unlistenStatus()
     if (unlistenResult) unlistenResult()
     if (unlistenToggle) unlistenToggle()
@@ -155,7 +217,19 @@ export function useDictation() {
     if (unlistenAudioLevel) unlistenAudioLevel()
     if (unlistenRefineChunk) unlistenRefineChunk()
     if (unlistenRefineStatus) unlistenRefineStatus()
+    if (unlistenSilenceCountdown) unlistenSilenceCountdown()
+    if (unlistenAutoStop) unlistenAutoStop()
   })
+
+  const pipelineStage = computed(() => {
+    if (isRefining.value) return 'refining'
+    if (isProcessing.value) return 'processing'
+    if (isRecording.value) return 'recording'
+    if (lastResult.value) return 'done'
+    return 'idle'
+  })
+
+  const sessionActive = computed(() => pipelineStage.value !== 'idle')
 
   return {
     isRecording,
@@ -168,6 +242,11 @@ export function useDictation() {
     audioLevel,
     audioLevels,
     recordingDuration,
+    processingDuration,
+    refiningDuration,
+    silenceCountdown,
+    pipelineStage,
+    sessionActive,
     startDictation,
     stopDictation,
     toggleDictation,

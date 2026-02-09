@@ -6,19 +6,26 @@ use reqwest::Client;
 use serde_json::json;
 use tauri::Emitter;
 
-const GEMINI_BASE_URL: &str = "https://generativelanguage.googleapis.com/v1beta/models";
+const DEFAULT_GEMINI_BASE_URL: &str = "https://generativelanguage.googleapis.com/v1beta/models";
 const GEMINI_MODEL: &str = "gemini-2.0-flash";
+const GEMINI_API_PATH: &str = "/v1beta/models";
 
 pub struct GeminiRefiner {
     client: Client,
     api_key: String,
+    base_url: String,
 }
 
 impl GeminiRefiner {
-    pub fn new(api_key: String) -> Self {
+    pub fn new(api_key: String, base_url: Option<String>) -> Self {
+        let url = match base_url {
+            Some(domain) => format!("{}{}", domain.trim().trim_end_matches('/'), GEMINI_API_PATH),
+            None => DEFAULT_GEMINI_BASE_URL.to_string(),
+        };
         Self {
             client: Client::new(),
             api_key,
+            base_url: url,
         }
     }
 
@@ -30,7 +37,7 @@ impl GeminiRefiner {
         };
         format!(
             "{}/{}:{}?key={}",
-            GEMINI_BASE_URL, GEMINI_MODEL, action, self.api_key
+            self.base_url, GEMINI_MODEL, action, self.api_key
         )
     }
 }

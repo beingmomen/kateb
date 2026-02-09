@@ -26,7 +26,15 @@ const form = reactive({
   openai_api_key: '',
   gemini_api_key: '',
   grok_api_key: '',
-  use_gpu: false
+  local_api_key: '',
+  claude_api_url: '',
+  openai_api_url: '',
+  gemini_api_url: '',
+  grok_api_url: '',
+  local_api_url: '',
+  use_gpu: false,
+  auto_stop_silence: true,
+  auto_stop_seconds: 5
 })
 
 const original = reactive({ ...form })
@@ -45,8 +53,17 @@ function loadFormFromSettings() {
   form.openai_api_key = getSettingValue('openai_api_key', '')
   form.gemini_api_key = getSettingValue('gemini_api_key', '')
   form.grok_api_key = getSettingValue('grok_api_key', '')
+  form.local_api_key = getSettingValue('local_api_key', '')
+  form.claude_api_url = getSettingValue('claude_api_url', '')
+  form.openai_api_url = getSettingValue('openai_api_url', '')
+  form.gemini_api_url = getSettingValue('gemini_api_url', '')
+  form.grok_api_url = getSettingValue('grok_api_url', '')
+  form.local_api_url = getSettingValue('local_api_url', '')
   const gpuVal = getSettingValue('use_gpu', false)
   form.use_gpu = gpuVal === true || gpuVal === 'true'
+  const autoStopVal = getSettingValue('auto_stop_silence', true)
+  form.auto_stop_silence = autoStopVal === true || autoStopVal === 'true'
+  form.auto_stop_seconds = Number(getSettingValue('auto_stop_seconds', 5))
   Object.assign(original, form)
 }
 
@@ -75,6 +92,13 @@ const durationOptions = [
   { label: '١٠ دقائق', value: 600 }
 ]
 
+const autoStopOptions = [
+  { label: '٣ ثواني', value: 3 },
+  { label: '٥ ثواني', value: 5 },
+  { label: '١٠ ثواني', value: 10 },
+  { label: '١٥ ثانية', value: 15 }
+]
+
 const providerOptions = computed(() => {
   return providers.value.map(p => ({
     label: p.name,
@@ -92,13 +116,49 @@ const currentApiKey = computed(() => {
       return form.gemini_api_key
     case 'grok':
       return form.grok_api_key
+    case 'local':
+      return form.local_api_key
+    default:
+      return ''
+  }
+})
+
+const currentApiUrl = computed(() => {
+  switch (form.ai_provider) {
+    case 'claude':
+      return form.claude_api_url
+    case 'openai':
+      return form.openai_api_url
+    case 'gemini':
+      return form.gemini_api_url
+    case 'grok':
+      return form.grok_api_url
+    case 'local':
+      return form.local_api_url
+    default:
+      return ''
+  }
+})
+
+const defaultUrlPlaceholder = computed(() => {
+  switch (form.ai_provider) {
+    case 'claude':
+      return 'https://api.anthropic.com'
+    case 'openai':
+      return 'https://api.openai.com'
+    case 'gemini':
+      return 'https://generativelanguage.googleapis.com'
+    case 'grok':
+      return 'https://api.x.ai'
+    case 'local':
+      return 'http://localhost:8000'
     default:
       return ''
   }
 })
 
 async function testConnection() {
-  const result = await testSpecificProvider(form.ai_provider, currentApiKey.value)
+  const result = await testSpecificProvider(form.ai_provider, currentApiKey.value, currentApiUrl.value)
   if (result.success) {
     toast.add({
       title: result.message,
@@ -134,7 +194,15 @@ async function handleSave() {
       openai_api_key: form.openai_api_key,
       gemini_api_key: form.gemini_api_key,
       grok_api_key: form.grok_api_key,
-      use_gpu: String(form.use_gpu)
+      local_api_key: form.local_api_key,
+      claude_api_url: form.claude_api_url,
+      openai_api_url: form.openai_api_url,
+      gemini_api_url: form.gemini_api_url,
+      grok_api_url: form.grok_api_url,
+      local_api_url: form.local_api_url,
+      use_gpu: String(form.use_gpu),
+      auto_stop_silence: String(form.auto_stop_silence),
+      auto_stop_seconds: String(form.auto_stop_seconds)
     }
 
     for (const [key, value] of Object.entries(settingsMap)) {
@@ -344,6 +412,27 @@ async function handleSave() {
               </div>
               <USwitch v-model="form.auto_start" />
             </div>
+
+            <USeparator />
+
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="font-medium">إيقاف تلقائي عند الصمت</p>
+                <p class="text-sm text-muted">إيقاف التسجيل تلقائياً عند انتهاء الكلام</p>
+              </div>
+              <USwitch v-model="form.auto_stop_silence" />
+            </div>
+
+            <UFormField
+              v-if="form.auto_stop_silence"
+              label="مدة الصمت قبل الإيقاف"
+            >
+              <USelect
+                v-model="form.auto_stop_seconds"
+                :items="autoStopOptions"
+                value-key="value"
+              />
+            </UFormField>
           </div>
         </UCard>
 
@@ -426,14 +515,52 @@ async function handleSave() {
                 />
               </UFormField>
 
-              <div
-                v-else-if="form.ai_provider === 'local'"
-                class="bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-200 p-4 rounded-lg text-sm"
+              <UFormField label="عنوان API مخصص (اختياري)">
+                <UInput
+                  v-if="form.ai_provider === 'claude'"
+                  v-model="form.claude_api_url"
+                  icon="i-lucide-globe"
+                  :placeholder="defaultUrlPlaceholder"
+                />
+                <UInput
+                  v-else-if="form.ai_provider === 'openai'"
+                  v-model="form.openai_api_url"
+                  icon="i-lucide-globe"
+                  :placeholder="defaultUrlPlaceholder"
+                />
+                <UInput
+                  v-else-if="form.ai_provider === 'gemini'"
+                  v-model="form.gemini_api_url"
+                  icon="i-lucide-globe"
+                  :placeholder="defaultUrlPlaceholder"
+                />
+                <UInput
+                  v-else-if="form.ai_provider === 'grok'"
+                  v-model="form.grok_api_url"
+                  icon="i-lucide-globe"
+                  :placeholder="defaultUrlPlaceholder"
+                />
+                <UInput
+                  v-else-if="form.ai_provider === 'local'"
+                  v-model="form.local_api_url"
+                  icon="i-lucide-globe"
+                  :placeholder="defaultUrlPlaceholder"
+                />
+                <p class="text-xs text-muted mt-1">أدخل الدومين فقط (مثال: https://your-domain.com) — المسار يُضاف تلقائياً</p>
+              </UFormField>
+
+              <UFormField
+                v-if="form.ai_provider === 'local' && form.local_api_url"
+                label="مفتاح API (اختياري)"
               >
-                <p>
-                  يتطلب تشغيل خادم محلي على المنفذ <code class="bg-blue-100 dark:bg-blue-800 px-1 rounded">8000</code>
-                </p>
-              </div>
+                <UInput
+                  v-model="form.local_api_key"
+                  type="password"
+                  icon="i-lucide-key"
+                  placeholder="skip أو اتركه فارغاً"
+                />
+                <p class="text-xs text-muted mt-1">إذا كان السيرفر يتطلب مفتاح، أدخله هنا (مثل: skip)</p>
+              </UFormField>
 
               <UButton
                 variant="soft"

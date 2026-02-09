@@ -12,11 +12,14 @@ pub fn build_user_message(raw_text: &str) -> String {
 
 ```
 function correctArabicText(input: string): string {{
-    // 1. Fix Arabic spelling errors (e.g., انا → أنا, اشتري → أشتري)
-    // 2. Fix Arabic grammar errors
-    // 3. Add proper Arabic punctuation: commas (،), periods (.), question marks (؟)
-    // 4. Do NOT add, remove, or translate any words
-    // 5. Return the corrected Arabic text string only
+    // 1. Remove Arabic filler words: أم، آه، يعني، مم، إيه، طيب، خلاص، هاه، إممم، آآه
+    // 2. Fix Arabic spelling errors (e.g., انا → أنا, اشتري → أشتري)
+    // 3. Fix Arabic grammar errors
+    // 4. Add proper Arabic punctuation: commas (،), periods (.), question marks (؟)
+    // 5. Keep English words as-is (do NOT translate them to Arabic)
+    // 6. Preserve the speaker's style (formal/informal) - do NOT make casual speech formal
+    // 7. Do NOT add new content, do NOT translate, do NOT summarize
+    // 8. Return the corrected text string only
 }}
 ```
 

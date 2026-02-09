@@ -8,17 +8,24 @@ use serde_json::json;
 use tauri::Emitter;
 
 const CLAUDE_MODEL: &str = "claude-sonnet-4-20250514";
+const CLAUDE_API_PATH: &str = "/v1/messages";
 
 pub struct ClaudeRefiner {
     client: Client,
     api_key: String,
+    base_url: String,
 }
 
 impl ClaudeRefiner {
-    pub fn new(api_key: String) -> Self {
+    pub fn new(api_key: String, base_url: Option<String>) -> Self {
+        let url = match base_url {
+            Some(domain) => format!("{}{}", domain.trim().trim_end_matches('/'), CLAUDE_API_PATH),
+            None => CLAUDE_API_URL.to_string(),
+        };
         Self {
             client: Client::new(),
             api_key,
+            base_url: url,
         }
     }
 }
@@ -32,7 +39,7 @@ impl AIRefiner for ClaudeRefiner {
     async fn test_connection(&self) -> Result<bool, AppError> {
         let response = self
             .client
-            .post(CLAUDE_API_URL)
+            .post(&self.base_url)
             .header("content-type", "application/json")
             .header("x-api-key", &self.api_key)
             .header("anthropic-version", "2023-06-01")
@@ -64,7 +71,7 @@ impl AIRefiner for ClaudeRefiner {
 
         let response = self
             .client
-            .post(CLAUDE_API_URL)
+            .post(&self.base_url)
             .header("content-type", "application/json")
             .header("x-api-key", &self.api_key)
             .header("anthropic-version", "2023-06-01")

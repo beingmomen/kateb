@@ -73,6 +73,8 @@ pub fn run() {
                 is_processing: Mutex::new(false),
                 streaming_active: Arc::new(AtomicBool::new(false)),
                 streaming_thread: Mutex::new(None),
+                accumulated_text: Arc::new(Mutex::new(Vec::new())),
+                vad: Arc::new(Mutex::new(audio::vad::AdaptiveVAD::new())),
             });
 
             let handle = app.handle().clone();

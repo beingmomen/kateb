@@ -13,8 +13,11 @@ pub fn run_migrations(conn: &Connection) -> Result<(), Box<dyn std::error::Error
         CREATE TABLE IF NOT EXISTS dictation_history (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             text TEXT NOT NULL,
+            raw_text TEXT NOT NULL DEFAULT '',
             duration INTEGER NOT NULL,
             language TEXT NOT NULL,
+            ai_provider TEXT NOT NULL DEFAULT '',
+            processing_time_ms INTEGER NOT NULL DEFAULT 0,
             created_at TEXT NOT NULL DEFAULT (datetime('now'))
         );
 
@@ -27,6 +30,22 @@ pub fn run_migrations(conn: &Connection) -> Result<(), Box<dyn std::error::Error
         );
         ",
     )?;
+    let columns: Vec<String> = conn
+        .prepare("PRAGMA table_info(dictation_history)")?
+        .query_map([], |row| row.get::<_, String>(1))?
+        .filter_map(|r| r.ok())
+        .collect();
+
+    if !columns.iter().any(|c| c == "raw_text") {
+        conn.execute_batch(
+            "
+            ALTER TABLE dictation_history ADD COLUMN raw_text TEXT NOT NULL DEFAULT '';
+            ALTER TABLE dictation_history ADD COLUMN ai_provider TEXT NOT NULL DEFAULT '';
+            ALTER TABLE dictation_history ADD COLUMN processing_time_ms INTEGER NOT NULL DEFAULT 0;
+            ",
+        )?;
+    }
+
     Ok(())
 }
 
@@ -43,6 +62,18 @@ pub fn seed_default_settings(conn: &Connection) -> Result<(), Box<dyn std::error
         ("use_gpu", "false"),
         ("ai_refinement", "false"),
         ("ai_provider", "local"),
+        ("claude_api_key", ""),
+        ("openai_api_key", ""),
+        ("gemini_api_key", ""),
+        ("grok_api_key", ""),
+        ("local_api_key", ""),
+        ("claude_api_url", ""),
+        ("openai_api_url", ""),
+        ("gemini_api_url", ""),
+        ("grok_api_url", ""),
+        ("local_api_url", ""),
+        ("auto_stop_silence", "true"),
+        ("auto_stop_seconds", "5"),
     ];
 
     for (key, value) in defaults {

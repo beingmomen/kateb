@@ -1,5 +1,7 @@
 use crate::ai::AIFactory;
+use crate::audio::preprocessor::AudioPreprocessor;
 use crate::audio::recorder::AudioRecorder;
+use crate::audio::vad::AdaptiveVAD;
 use crate::constants::{audio::*, hallucination::*};
 use crate::db::Database;
 use crate::keyboard::simulator::KeyboardSimulator;
@@ -15,23 +17,20 @@ pub struct DictationState {
     pub is_processing: Mutex<bool>,
     pub streaming_active: Arc<AtomicBool>,
     pub streaming_thread: Mutex<Option<std::thread::JoinHandle<()>>>,
+    pub accumulated_text: Arc<Mutex<Vec<String>>>,
+    pub vad: Arc<Mutex<AdaptiveVAD>>,
 }
 
-fn compute_rms(audio: &[f32]) -> f32 {
-    if audio.is_empty() {
-        return 0.0;
-    }
-    let sum_sq: f32 = audio.iter().map(|s| s * s).sum();
-    (sum_sq / audio.len() as f32).sqrt()
-}
-
-fn is_chunk_hallucination(text: &str) -> bool {
+fn is_chunk_hallucination(text: &str, audio_duration_secs: f32) -> bool {
     let trimmed = text.trim();
     if trimmed.is_empty() {
         return true;
     }
     let char_count = trimmed.chars().count();
     if char_count < 2 {
+        return true;
+    }
+    if audio_duration_secs > 2.0 && char_count < 3 {
         return true;
     }
     for pattern in CONTAINS_PATTERNS {
@@ -78,14 +77,41 @@ fn streaming_transcription_loop(streaming_active: Arc<AtomicBool>, app: tauri::A
 
     eprintln!("[streaming] Loop started");
 
+    let state: tauri::State<'_, DictationState> = app.state();
+
+    {
+        let mut vad = state.vad.lock().unwrap();
+        vad.reset();
+    }
+
+    let auto_stop_enabled = {
+        let db: tauri::State<'_, Database> = app.state();
+        let conn = db.0.lock().unwrap();
+        let enabled = conn
+            .query_row(
+                "SELECT value FROM settings WHERE key = 'auto_stop_silence'",
+                [],
+                |row| row.get::<_, String>(0),
+            )
+            .unwrap_or_else(|_| "true".to_string());
+        let seconds: f32 = conn
+            .query_row(
+                "SELECT value FROM settings WHERE key = 'auto_stop_seconds'",
+                [],
+                |row| row.get::<_, String>(0),
+            )
+            .unwrap_or_else(|_| "5".to_string())
+            .parse()
+            .unwrap_or(AUTO_STOP_SILENCE_SECS);
+        (enabled == "true", seconds)
+    };
+
     while streaming_active.load(Ordering::SeqCst) {
         std::thread::sleep(std::time::Duration::from_millis(POLL_INTERVAL_MS));
 
         if !streaming_active.load(Ordering::SeqCst) {
             break;
         }
-
-        let state: tauri::State<'_, DictationState> = app.state();
 
         let (current_len, audio_level) = {
             let recorder = state.recorder.lock().unwrap();
@@ -96,6 +122,36 @@ fn streaming_transcription_loop(streaming_active: Arc<AtomicBool>, app: tauri::A
 
         let new_samples = current_len.saturating_sub(last_processed_pos);
         if new_samples < CHUNK_SAMPLES {
+            if new_samples > 0 {
+                let recent_audio = {
+                    let recorder = state.recorder.lock().unwrap();
+                    let full_buffer = recorder.get_buffer_snapshot();
+                    let start = current_len.saturating_sub(new_samples);
+                    full_buffer[start..current_len.min(full_buffer.len())].to_vec()
+                };
+                let mut vad = state.vad.lock().unwrap();
+                vad.feed(&recent_audio);
+
+                if auto_stop_enabled.0 {
+                    let silence_dur = vad.silence_duration_secs();
+                    let has_text = {
+                        let acc = state.accumulated_text.lock().unwrap();
+                        !acc.is_empty()
+                    };
+                    if has_text {
+                        let remaining = auto_stop_enabled.1 - silence_dur;
+                        let _ = app.emit("silence-countdown", serde_json::json!({
+                            "remaining": remaining,
+                            "total": auto_stop_enabled.1
+                        }));
+                        if silence_dur >= auto_stop_enabled.1 {
+                            eprintln!("[streaming] Auto-stop: {:.1}s silence detected", silence_dur);
+                            let _ = app.emit("dictation-auto-stop", serde_json::json!({}));
+                            break;
+                        }
+                    }
+                }
+            }
             continue;
         }
 
@@ -115,25 +171,56 @@ fn streaming_transcription_loop(streaming_active: Arc<AtomicBool>, app: tauri::A
             continue;
         }
 
-        let rms = compute_rms(&chunk_audio);
-        eprintln!("[streaming] Chunk RMS: {:.6}", rms);
-        if rms < STREAMING_SILENCE_RMS {
-            eprintln!("[streaming] Skipping silent chunk (RMS: {:.6})", rms);
-            last_processed_pos = current_len;
-            continue;
+        {
+            let mut vad = state.vad.lock().unwrap();
+            let is_speech = vad.feed(&chunk_audio);
+            if !is_speech {
+                eprintln!("[streaming] VAD: no speech detected, skipping chunk");
+                last_processed_pos = current_len;
+
+                if auto_stop_enabled.0 {
+                    let silence_dur = vad.silence_duration_secs();
+                    let has_text = {
+                        let acc = state.accumulated_text.lock().unwrap();
+                        !acc.is_empty()
+                    };
+                    if has_text {
+                        let remaining = auto_stop_enabled.1 - silence_dur;
+                        let _ = app.emit("silence-countdown", serde_json::json!({
+                            "remaining": remaining,
+                            "total": auto_stop_enabled.1
+                        }));
+                        if silence_dur >= auto_stop_enabled.1 {
+                            eprintln!("[streaming] Auto-stop: {:.1}s silence detected", silence_dur);
+                            let _ = app.emit("dictation-auto-stop", serde_json::json!({}));
+                            break;
+                        }
+                    }
+                }
+
+                continue;
+            }
+
+            if auto_stop_enabled.0 {
+                let _ = app.emit("silence-countdown", serde_json::json!({
+                    "remaining": auto_stop_enabled.1,
+                    "total": auto_stop_enabled.1
+                }));
+            }
         }
 
+        let processed_audio = AudioPreprocessor::process(&chunk_audio);
+
         eprintln!(
-            "[streaming] Processing chunk {} ({} samples, {:.1}s, RMS: {:.4})",
+            "[streaming] Processing chunk {} ({} samples, {:.1}s)",
             chunk_index,
-            chunk_audio.len(),
-            chunk_audio.len() as f64 / SAMPLE_RATE as f64,
-            rms
+            processed_audio.len(),
+            processed_audio.len() as f64 / SAMPLE_RATE as f64,
         );
 
         let text = {
             let transcriber = state.transcriber.lock().unwrap();
-            match transcriber.transcribe_chunk(&chunk_audio) {
+            match transcriber.transcribe_chunk(&processed_audio) {
                 Ok(t) => t,
                 Err(e) => {
                     eprintln!("[streaming] Chunk transcription error: {}", e);
@@ -146,8 +233,15 @@ fn streaming_transcription_loop(streaming_active: Arc<AtomicBool>, app: tauri::A
         last_processed_pos = current_len;
         chunk_index += 1;
 
-        if !text.trim().is_empty() && !is_chunk_hallucination(&text) {
+        let chunk_duration = chunk_audio.len() as f32 / SAMPLE_RATE as f32;
+        if !text.trim().is_empty() && !is_chunk_hallucination(&text, chunk_duration) {
             eprintln!("[streaming] Chunk {} result: '{}'", chunk_index, text.trim());
+
+            {
+                let mut acc = state.accumulated_text.lock().unwrap();
+                acc.push(text.trim().to_string());
+            }
+
             let _ = app.emit(
                 "dictation-partial",
                 serde_json::json!({
@@ -223,15 +317,21 @@ fn transcribe_audio(
     }
 }
 
+struct RefinementResult {
+    text: String,
+    ai_provider: String,
+    processing_time_ms: u64,
+}
+
 async fn refine_with_ai(
     text: &str,
     db: &State<'_, Database>,
     app: &tauri::AppHandle,
-) -> String {
+) -> RefinementResult {
     let ai_enabled = {
         let conn = match db.0.lock() {
             Ok(c) => c,
-            Err(_) => return text.to_string(),
+            Err(_) => return RefinementResult { text: text.to_string(), ai_provider: String::new(), processing_time_ms: 0 },
         };
         conn.query_row(
             "SELECT value FROM settings WHERE key = 'ai_refinement'",
@@ -242,19 +342,22 @@ async fn refine_with_ai(
     };
 
     if ai_enabled != "true" || text.trim().is_empty() {
-        return text.to_string();
+        return RefinementResult { text: text.to_string(), ai_provider: String::new(), processing_time_ms: 0 };
     }
 
     let refiner = match AIFactory::create_from_settings(db) {
         Ok(r) => r,
         Err(e) => {
             eprintln!("[ai] Failed to create refiner: {}", e);
-            return text.to_string();
+            return RefinementResult { text: text.to_string(), ai_provider: String::new(), processing_time_ms: 0 };
         }
     };
 
-    eprintln!("[ai] AI refinement enabled, using {}...", refiner.provider_name());
-    match refiner.refine_streaming(text, app).await {
+    let provider_name = refiner.provider_name().to_string();
+    eprintln!("[ai] AI refinement enabled, using {}...", provider_name);
+
+    let ai_start = std::time::Instant::now();
+    let result = match refiner.refine_streaming(text, app).await {
         Ok(refined) if !refined.trim().is_empty() => {
             eprintln!("[ai] Refinement successful");
             refined
@@ -267,14 +370,21 @@ async fn refine_with_ai(
             eprintln!("[ai] Refinement failed, using original: {}", e);
             text.to_string()
         }
-    }
+    };
+    let processing_time_ms = ai_start.elapsed().as_millis() as u64;
+    eprintln!("[ai] Processing took {}ms", processing_time_ms);
+
+    RefinementResult { text: result, ai_provider: provider_name, processing_time_ms }
 }
 
 fn save_to_history(
     state: &State<'_, DictationState>,
     db: &State<'_, Database>,
     text: &str,
+    raw_text: &str,
     duration: u64,
+    ai_provider: &str,
+    processing_time_ms: u64,
 ) -> Result<(), String> {
     let conn = db.0.lock().map_err(|e| e.to_string())?;
     let language = {
@@ -283,8 +393,8 @@ fn save_to_history(
     };
 
     conn.execute(
-        "INSERT INTO dictation_history (text, duration, language) VALUES (?1, ?2, ?3)",
-        rusqlite::params![text, duration as i64, &language],
+        "INSERT INTO dictation_history (text, raw_text, duration, language, ai_provider, processing_time_ms) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+        rusqlite::params![text, raw_text, duration as i64, &language, ai_provider, processing_time_ms as i64],
     )
     .map_err(|e| e.to_string())?;
 
@@ -358,6 +468,11 @@ pub async fn start_dictation(
         return Err("التسجيل قيد التشغيل بالفعل".to_string());
     }
 
+    {
+        let mut acc = state.accumulated_text.lock().map_err(|e| e.to_string())?;
+        acc.clear();
+    }
+
     let recorder = state.recorder.lock().map_err(|e| e.to_string())?;
     recorder.start().map_err(|e| e.to_string())?;
     *is_recording = true;
@@ -396,15 +511,15 @@ pub async fn stop_dictation(
         *is_recording = false;
     }
 
-    stop_streaming_thread(&state).await?;
-
-    let (audio_data, duration) = capture_audio(&state)?;
-
     {
         let mut is_processing = state.is_processing.lock().map_err(|e| e.to_string())?;
         *is_processing = true;
     }
     emit_status(&app, false, true);
+
+    stop_streaming_thread(&state).await?;
+
+    let (audio_data, duration) = capture_audio(&state)?;
 
     if audio_data.is_empty() {
         eprintln!("[dictation] WARNING: Audio buffer is empty, nothing to transcribe");
@@ -417,20 +532,35 @@ pub async fn stop_dictation(
         return Ok(String::new());
     }
 
-    let text = match transcribe_audio(&state, &audio_data) {
-        Ok(t) => t,
-        Err(e) => {
-            let mut is_processing = state
-                .is_processing
-                .lock()
-                .map_err(|_| "lock error".to_string())?;
-            *is_processing = false;
-            emit_status(&app, false, false);
-            return Err(e);
+    let accumulated = {
+        let acc = state.accumulated_text.lock().map_err(|e| e.to_string())?;
+        acc.join(" ")
+    };
+
+    let text = if !accumulated.trim().is_empty() {
+        eprintln!("[dictation] Using accumulated streaming text ({} chars), skipping re-transcription", accumulated.len());
+        accumulated
+    } else {
+        eprintln!("[dictation] No accumulated text, falling back to full re-transcription");
+        match transcribe_audio(&state, &audio_data) {
+            Ok(t) => t,
+            Err(e) => {
+                let mut is_processing = state
+                    .is_processing
+                    .lock()
+                    .map_err(|_| "lock error".to_string())?;
+                *is_processing = false;
+                emit_status(&app, false, false);
+                return Err(e);
+            }
         }
     };
 
-    let text = refine_with_ai(&text, &db, &app).await;
+    let raw_text = text.clone();
+    let refinement = refine_with_ai(&text, &db, &app).await;
+    let text = refinement.text;
+    let ai_provider = refinement.ai_provider;
+    let processing_time_ms = refinement.processing_time_ms;
 
     {
         let mut is_processing = state.is_processing.lock().map_err(|e| e.to_string())?;
@@ -438,8 +568,10 @@ pub async fn stop_dictation(
     }
     emit_status(&app, false, false);
 
-    if !text.trim().is_empty() && !is_chunk_hallucination(&text) {
-        save_to_history(&state, &db, &text, duration)?;
+    let total_duration = audio_data.len() as f32 / SAMPLE_RATE as f32;
+    if !text.trim().is_empty() && !is_chunk_hallucination(&text, total_duration) {
+        let save_raw = if ai_provider.is_empty() { "" } else { &raw_text };
+        save_to_history(&state, &db, &text, save_raw, duration, &ai_provider, processing_time_ms)?;
         auto_type_text(&db, &text)?;
 
         let language = {

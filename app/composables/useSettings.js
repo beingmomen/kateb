@@ -26,12 +26,8 @@ export function useSettings() {
   }
 
   async function updateSetting(key, value) {
-    try {
-      await tauriInvoke('update_setting', { key, value: String(value) })
-      await fetchSettings()
-    } catch (e) {
-      error.value = e
-    }
+    await tauriInvoke('update_setting', { key, value: String(value) })
+    await fetchSettings()
   }
 
   function getSettingValue(key, defaultValue = null) {

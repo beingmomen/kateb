@@ -38,7 +38,7 @@ impl WhisperTranscriber {
         params.set_logprob_thold(-1.0);
         params.set_temperature(0.0);
         params.set_temperature_inc(0.0);
-        params.set_initial_prompt("إملاء صوتي باللغة العربية.");
+        params.set_initial_prompt("إملاء صوتي باللغة العربية الفصحى والعامية. النص يحتوي على جمل كاملة مع علامات ترقيم صحيحة، ولا يحتوي على أناشيد أو موسيقى أو ترجمات.");
     }
 
     pub fn transcribe(&self, audio_data: &[f32]) -> Result<String, anyhow::Error> {
@@ -53,7 +53,7 @@ impl WhisperTranscriber {
         let mut state = ctx.create_state()
             .map_err(|e| anyhow::anyhow!("فشل إنشاء حالة Whisper: {}", e))?;
 
-        let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
+        let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 3 });
         params.set_language(Some(&self.language));
         params.set_translate(false);
         params.set_no_timestamps(true);
@@ -62,7 +62,7 @@ impl WhisperTranscriber {
         params.set_print_special(false);
         Self::apply_anti_hallucination(&mut params);
 
-        eprintln!("[whisper] Running transcription (language: {})...", self.language);
+        eprintln!("[whisper] Running transcription with best_of=3 (language: {})...", self.language);
         let start = std::time::Instant::now();
         state
             .full(params, audio_data)

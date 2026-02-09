@@ -49,6 +49,23 @@ function formatDuration(seconds) {
   if (seconds < 60) return `${seconds} ث`
   return `${Math.floor(seconds / 60)} د`
 }
+
+function formatProcessingTime(ms) {
+  if (!ms) return ''
+  if (ms < 1000) return `${ms} مللي ث`
+  return `${(ms / 1000).toFixed(1)} ث`
+}
+
+function getProviderLabel(provider) {
+  const map = {
+    claude: 'Claude',
+    openai: 'OpenAI',
+    gemini: 'Gemini',
+    grok: 'Grok',
+    local: 'محلي'
+  }
+  return map[provider] || provider
+}
 </script>
 
 <template>
@@ -115,14 +132,55 @@ function formatDuration(seconds) {
             <div class="flex items-start justify-between gap-4">
               <div class="flex-1 min-w-0">
                 <p class="text-base leading-relaxed whitespace-pre-wrap">{{ item.text }}</p>
-                <div class="flex items-center gap-3 mt-2 text-sm text-muted">
-                  <span>{{ formatDate(item.created_at) }}</span>
+
+                <UCollapsible
+                  v-if="item.raw_text"
+                  class="mt-2"
+                >
+                  <UButton
+                    label="النص الأصلي"
+                    color="neutral"
+                    variant="ghost"
+                    size="xs"
+                    icon="i-lucide-file-text"
+                    trailing-icon="i-lucide-chevron-down"
+                  />
+                  <template #content>
+                    <div class="mt-1 p-3 bg-neutral-50 dark:bg-neutral-900 rounded-lg text-sm text-muted whitespace-pre-wrap">
+                      {{ item.raw_text }}
+                    </div>
+                  </template>
+                </UCollapsible>
+
+                <div class="flex items-center gap-3 mt-2 text-sm text-muted flex-wrap">
+                  <span class="flex items-center gap-1">
+                    <UIcon name="i-lucide-calendar" class="size-3.5" />
+                    {{ formatDate(item.created_at) }}
+                  </span>
                   <UBadge
                     :label="item.language === 'ar' ? 'عربي' : 'English'"
                     variant="subtle"
                     size="xs"
                   />
-                  <span>{{ formatDuration(item.duration) }}</span>
+                  <span class="flex items-center gap-1">
+                    <UIcon name="i-lucide-mic" class="size-3.5" />
+                    {{ formatDuration(item.duration) }}
+                  </span>
+                  <UBadge
+                    v-if="item.ai_provider"
+                    :label="getProviderLabel(item.ai_provider)"
+                    color="primary"
+                    variant="subtle"
+                    size="xs"
+                    icon="i-lucide-sparkles"
+                  />
+                  <span
+                    v-if="item.processing_time_ms"
+                    class="flex items-center gap-1"
+                  >
+                    <UIcon name="i-lucide-timer" class="size-3.5" />
+                    {{ formatProcessingTime(item.processing_time_ms) }}
+                  </span>
                 </div>
               </div>
 

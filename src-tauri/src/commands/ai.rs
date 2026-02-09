@@ -32,6 +32,7 @@ pub async fn test_ai_connection(
 pub async fn test_specific_provider(
     provider: String,
     api_key: String,
+    base_url: Option<String>,
 ) -> Result<serde_json::Value, String> {
     let provider_enum = AIProvider::from_str(&provider);
     let api_key_opt = if api_key.is_empty() {
@@ -39,8 +40,9 @@ pub async fn test_specific_provider(
     } else {
         Some(api_key)
     };
+    let base_url_opt = base_url.filter(|u| !u.is_empty());
 
-    let refiner = AIFactory::create(provider_enum, api_key_opt).map_err(|e| e.to_string())?;
+    let refiner = AIFactory::create(provider_enum, api_key_opt, base_url_opt).map_err(|e| e.to_string())?;
     let provider_name = refiner.provider_name();
 
     match refiner.test_connection().await {

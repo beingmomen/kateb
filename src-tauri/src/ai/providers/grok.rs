@@ -8,17 +8,24 @@ use serde_json::json;
 use tauri::Emitter;
 
 const GROK_MODEL: &str = "grok-3-mini";
+const GROK_API_PATH: &str = "/v1/chat/completions";
 
 pub struct GrokRefiner {
     client: Client,
     api_key: String,
+    base_url: String,
 }
 
 impl GrokRefiner {
-    pub fn new(api_key: String) -> Self {
+    pub fn new(api_key: String, base_url: Option<String>) -> Self {
+        let url = match base_url {
+            Some(domain) => format!("{}{}", domain.trim().trim_end_matches('/'), GROK_API_PATH),
+            None => GROK_API_URL.to_string(),
+        };
         Self {
             client: Client::new(),
             api_key,
+            base_url: url,
         }
     }
 }
@@ -32,7 +39,7 @@ impl AIRefiner for GrokRefiner {
     async fn test_connection(&self) -> Result<bool, AppError> {
         let response = self
             .client
-            .post(GROK_API_URL)
+            .post(&self.base_url)
             .header("content-type", "application/json")
             .header("Authorization", format!("Bearer {}", &self.api_key))
             .json(&json!({
@@ -63,7 +70,7 @@ impl AIRefiner for GrokRefiner {
 
         let response = self
             .client
-            .post(GROK_API_URL)
+            .post(&self.base_url)
             .header("content-type", "application/json")
             .header("Authorization", format!("Bearer {}", &self.api_key))
             .json(&json!({
