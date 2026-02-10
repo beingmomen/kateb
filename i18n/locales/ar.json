@@ -224,7 +224,17 @@
     "aiCustomUrlHint": "أدخل الدومين فقط (مثال: https://your-domain.com) — المسار يُضاف تلقائياً",
     "aiLocalKey": "مفتاح API (اختياري)",
     "aiLocalKeyHint": "إذا كان السيرفر يتطلب مفتاح، أدخله هنا (مثل: skip)",
-    "testConnection": "اختبار الاتصال"
+    "testConnection": "اختبار الاتصال",
+    "backupSection": "النسخ الاحتياطي",
+    "exportSettings": "تصدير الإعدادات",
+    "exportDesc": "حفظ إعداداتك في ملف JSON",
+    "importSettings": "استيراد الإعدادات",
+    "importDesc": "استعادة الإعدادات من ملف JSON",
+    "exportSuccess": "تم تصدير الإعدادات بنجاح",
+    "exportError": "فشل تصدير الإعدادات",
+    "importSuccess": "تم استيراد {count} إعداد بنجاح",
+    "importError": "فشل استيراد الإعدادات",
+    "importInvalid": "ملف غير صالح"
   },
   "error": {
     "unexpected": "حدث خطأ غير متوقع",

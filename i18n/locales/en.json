@@ -224,7 +224,17 @@
     "aiCustomUrlHint": "Enter domain only (e.g., https://your-domain.com) - path is added automatically",
     "aiLocalKey": "API Key (optional)",
     "aiLocalKeyHint": "If the server requires a key, enter it here (e.g., skip)",
-    "testConnection": "Test connection"
+    "testConnection": "Test connection",
+    "backupSection": "Backup",
+    "exportSettings": "Export Settings",
+    "exportDesc": "Save your settings to a JSON file",
+    "importSettings": "Import Settings",
+    "importDesc": "Restore settings from a JSON file",
+    "exportSuccess": "Settings exported successfully",
+    "exportError": "Failed to export settings",
+    "importSuccess": "{count} settings imported successfully",
+    "importError": "Failed to import settings",
+    "importInvalid": "Invalid file"
   },
   "error": {
     "unexpected": "An unexpected error occurred",

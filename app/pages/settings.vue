@@ -260,6 +260,71 @@ async function testConnection() {
   }
 }
 
+const isExporting = ref(false)
+const isImporting = ref(false)
+
+async function handleExport() {
+  isExporting.value = true
+  try {
+    const json = await tauriInvoke('export_settings')
+    const blob = new Blob([json], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `kateb-settings-${new Date().toISOString().slice(0, 10)}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+    toast.add({
+      title: t('settings.exportSuccess'),
+      icon: 'i-lucide-check',
+      color: 'success'
+    })
+  } catch (e) {
+    toast.add({
+      title: t('settings.exportError'),
+      description: String(e),
+      icon: 'i-lucide-alert-circle',
+      color: 'error'
+    })
+  } finally {
+    isExporting.value = false
+  }
+}
+
+async function handleImport() {
+  const input = document.createElement('input')
+  input.type = 'file'
+  input.accept = '.json'
+  input.onchange = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    isImporting.value = true
+    try {
+      const text = await file.text()
+      JSON.parse(text)
+      const count = await tauriInvoke('import_settings', { json: text })
+      toast.add({
+        title: t('settings.importSuccess', { count }),
+        icon: 'i-lucide-check',
+        color: 'success'
+      })
+      await fetchSettings()
+      loadFormFromSettings()
+    } catch (e) {
+      toast.add({
+        title: t('settings.importError'),
+        description: String(e),
+        icon: 'i-lucide-alert-circle',
+        color: 'error'
+      })
+    } finally {
+      isImporting.value = false
+    }
+  }
+  input.click()
+}
+
 async function handleSave() {
   isSaving.value = true
   try {
@@ -722,6 +787,49 @@ async function handleSave() {
                 {{ $t('settings.testConnection') }}
               </UButton>
             </template>
+          </div>
+        </UCard>
+
+        <UCard>
+          <template #header>
+            <div class="flex items-center gap-2">
+              <UIcon name="i-lucide-hard-drive" class="text-lg" />
+              <h3 class="font-semibold">{{ $t('settings.backupSection') }}</h3>
+            </div>
+          </template>
+
+          <div class="space-y-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="font-medium">{{ $t('settings.exportSettings') }}</p>
+                <p class="text-sm text-muted">{{ $t('settings.exportDesc') }}</p>
+              </div>
+              <UButton
+                variant="soft"
+                icon="i-lucide-download"
+                :loading="isExporting"
+                @click="handleExport"
+              >
+                {{ $t('settings.exportSettings') }}
+              </UButton>
+            </div>
+
+            <USeparator />
+
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="font-medium">{{ $t('settings.importSettings') }}</p>
+                <p class="text-sm text-muted">{{ $t('settings.importDesc') }}</p>
+              </div>
+              <UButton
+                variant="soft"
+                icon="i-lucide-upload"
+                :loading="isImporting"
+                @click="handleImport"
+              >
+                {{ $t('settings.importSettings') }}
+              </UButton>
+            </div>
           </div>
         </UCard>
 

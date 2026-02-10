@@ -374,6 +374,8 @@ pub fn run() {
             commands::ai::get_ai_providers,
             commands::ai::get_current_ai_provider,
             commands::ai::detect_gpu,
+            commands::backup::export_settings,
+            commands::backup::import_settings,
             update_shortcut,
         ])
         .run(tauri::generate_context!())
