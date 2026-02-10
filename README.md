@@ -16,6 +16,22 @@
 
 ---
 
+## Screenshots | لقطات الشاشة
+
+<div align="center">
+
+| الصفحة الرئيسية — Home | الإعدادات — Settings |
+|:---:|:---:|
+| ![Home](docs/screenshots/home.png) | ![Settings](docs/screenshots/settings.png) |
+
+| الترحيب — Welcome | الدعم — Support |
+|:---:|:---:|
+| ![Welcome](docs/screenshots/welcome.png) | ![Support](docs/screenshots/support.png) |
+
+</div>
+
+---
+
 ## العربية
 
 **كاتِب** هو تطبيق سطح مكتب مفتوح المصدر يحول الكلام إلى نص باللغة العربية والإنجليزية. يعمل محلياً على جهازك بدون الحاجة للإنترنت باستخدام نماذج Whisper من OpenAI، مع خيار تحسين النص بالذكاء الاصطناعي.
