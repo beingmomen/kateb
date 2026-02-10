@@ -4,7 +4,7 @@ definePageMeta({
 })
 
 const { t } = useI18n()
-const { availableModels, activeModel, isDownloading, downloadingModelId, downloadProgress, downloadedBytes, totalBytes, error, isLoading, getAvailableModels, getActiveModel, downloadModel, setActiveModel, deleteModel, formatBytes } = useModels()
+const { availableModels, activeModel, isDownloading, downloadingModelId, downloadProgress, downloadedBytes, totalBytes, getAvailableModels, getActiveModel, downloadModel, setActiveModel, deleteModel, formatBytes } = useModels()
 const toast = useToast()
 
 const deleteTargetId = ref(null)
@@ -154,8 +154,12 @@ function isActive(modelId) {
 
             <div class="space-y-3 pt-2">
               <div class="text-center">
-                <h3 class="font-bold">{{ m.name }}</h3>
-                <p class="text-xs text-muted mt-1">{{ m.description_ar }}</p>
+                <h3 class="font-bold">
+                  {{ m.name }}
+                </h3>
+                <p class="text-xs text-muted mt-1">
+                  {{ m.description_ar }}
+                </p>
               </div>
 
               <div class="space-y-2 text-sm">
@@ -209,7 +213,9 @@ function isActive(modelId) {
                     color="primary"
                     size="sm"
                   />
-                  <p class="text-xs text-muted text-center">{{ progressText }} ({{ Math.round(downloadProgress) }}%)</p>
+                  <p class="text-xs text-muted text-center">
+                    {{ progressText }} ({{ Math.round(downloadProgress) }}%)
+                  </p>
                 </div>
               </template>
 

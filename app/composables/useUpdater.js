@@ -21,8 +21,7 @@ export function useUpdater() {
         updateBody.value = update.body || ''
         updateInstance.value = update
       }
-    }
-    catch (e) {
+    } catch (e) {
       console.warn('[updater] Check failed:', e)
     }
   }
@@ -56,8 +55,7 @@ export function useUpdater() {
 
       const { relaunch } = await import('@tauri-apps/plugin-process')
       await relaunch()
-    }
-    catch (e) {
+    } catch (e) {
       console.error('[updater] Download failed:', e)
       isDownloading.value = false
     }
@@ -76,6 +74,6 @@ export function useUpdater() {
     downloadProgress,
     checkForUpdates,
     downloadAndInstall,
-    dismiss,
+    dismiss
   }
 }

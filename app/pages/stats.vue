@@ -39,7 +39,7 @@ const summaryCards = computed(() => [
 ])
 
 const chartLabels = computed(() =>
-  dailyStats.value.map(s => {
+  dailyStats.value.map((s) => {
     const date = new Date(s.date)
     return new Intl.DateTimeFormat(locale.value, { month: 'short', day: 'numeric' }).format(date)
   })
@@ -94,8 +94,12 @@ watch(activePeriod, (val) => {
                 />
               </div>
               <div>
-                <p class="text-sm text-muted">{{ card.title }}</p>
-                <p class="text-2xl font-bold">{{ card.value }}</p>
+                <p class="text-sm text-muted">
+                  {{ card.title }}
+                </p>
+                <p class="text-2xl font-bold">
+                  {{ card.value }}
+                </p>
               </div>
             </div>
           </UCard>
@@ -111,12 +115,17 @@ watch(activePeriod, (val) => {
           />
         </div>
 
-        <div v-else-if="!dailyStats.length" class="text-center py-12">
+        <div
+          v-else-if="!dailyStats.length"
+          class="text-center py-12"
+        >
           <UIcon
             name="i-lucide-bar-chart-3"
             class="size-12 text-muted mx-auto mb-4"
           />
-          <p class="text-muted">{{ $t('stats.noStats') }}</p>
+          <p class="text-muted">
+            {{ $t('stats.noStats') }}
+          </p>
         </div>
 
         <template v-else>

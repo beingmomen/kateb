@@ -38,7 +38,7 @@ export function useModels() {
   async function hasActiveModel() {
     try {
       return await tauriInvoke('has_active_model')
-    } catch (e) {
+    } catch {
       return false
     }
   }

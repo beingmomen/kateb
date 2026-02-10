@@ -1,7 +1,7 @@
 <script setup>
 definePageMeta({
-  layout: "dashboard",
-});
+  layout: 'dashboard'
+})
 
 const { t } = useI18n()
 
@@ -19,71 +19,71 @@ const {
   refiningDuration,
   silenceCountdown,
   pipelineStage,
-  sessionActive,
-} = useDictation();
+  sessionActive
+} = useDictation()
 
 const statusText = computed(() => {
-  if (isRefining.value) return t("home.refining");
-  if (isProcessing.value) return t("home.processing");
-  if (isRecording.value) return t("home.recording");
-  return t("home.pressToStart");
-});
+  if (isRefining.value) return t('home.refining')
+  if (isProcessing.value) return t('home.processing')
+  if (isRecording.value) return t('home.recording')
+  return t('home.pressToStart')
+})
 
 const statusColor = computed(() => {
-  if (isProcessing.value) return "warning";
-  if (isRecording.value) return "error";
-  return "primary";
-});
+  if (isProcessing.value) return 'warning'
+  if (isRecording.value) return 'error'
+  return 'primary'
+})
 
 const formattedDuration = computed(() => {
-  const mins = Math.floor(recordingDuration.value / 60);
-  const secs = recordingDuration.value % 60;
-  return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
-});
+  const mins = Math.floor(recordingDuration.value / 60)
+  const secs = recordingDuration.value % 60
+  return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+})
 
 function formatMs(ms) {
-  if (ms < 1000) return `${ms} ${t('common.ms')}`;
-  return `${(ms / 1000).toFixed(1)} ${t('common.sec')}`;
+  if (ms < 1000) return `${ms} ${t('common.ms')}`
+  return `${(ms / 1000).toFixed(1)} ${t('common.sec')}`
 }
 
 function formatSecs(secs) {
-  if (secs < 60) return `${secs} ${t('common.sec')}`;
-  const mins = Math.floor(secs / 60);
-  const remaining = secs % 60;
-  return `${mins} ${t('common.min')} ${remaining} ${t('common.sec')}`;
+  if (secs < 60) return `${secs} ${t('common.sec')}`
+  const mins = Math.floor(secs / 60)
+  const remaining = secs % 60
+  return `${mins} ${t('common.min')} ${remaining} ${t('common.sec')}`
 }
 
-const stageIndex = { recording: 0, processing: 1, refining: 2, done: 3, idle: -1 };
+const stageIndex = { recording: 0, processing: 1, refining: 2, done: 3, idle: -1 }
 
 const showRefiningStage = computed(() => {
-  return pipelineStage.value === 'refining' || refiningDuration.value > 0;
-});
+  return pipelineStage.value === 'refining' || refiningDuration.value > 0
+})
 
 const timelineStages = computed(() => {
   const stages = [
     { key: 'recording', label: t('home.stageRecording'), icon: 'i-lucide-mic', duration: formatSecs(recordingDuration.value) },
-    { key: 'processing', label: t('home.stageProcessing'), icon: 'i-lucide-cpu', duration: formatMs(processingDuration.value) },
-  ];
+    { key: 'processing', label: t('home.stageProcessing'), icon: 'i-lucide-cpu', duration: formatMs(processingDuration.value) }
+  ]
   if (showRefiningStage.value) {
-    stages.push({ key: 'refining', label: t('home.stageRefining'), icon: 'i-lucide-sparkles', duration: formatMs(refiningDuration.value) });
+    stages.push({ key: 'refining', label: t('home.stageRefining'), icon: 'i-lucide-sparkles', duration: formatMs(refiningDuration.value) })
   }
-  return stages;
-});
+  return stages
+})
 
 function getStageState(stageKey) {
-  const current = stageIndex[pipelineStage.value] ?? -1;
-  const target = stageIndex[stageKey];
-  if (pipelineStage.value === stageKey) return 'active';
-  if (pipelineStage.value === 'done' || current > target) return 'completed';
-  return 'pending';
+  const current = stageIndex[pipelineStage.value] ?? -1
+  const target = stageIndex[stageKey]
+  if (pipelineStage.value === stageKey) return 'active'
+  if (pipelineStage.value === 'done' || current > target) return 'completed'
+  return 'pending'
 }
 
-const toast = useToast();
+const toast = useToast()
 
 async function handleCopy() {
-  if (!lastResult.value) return;
-  await navigator.clipboard.writeText(lastResult.value);
-  toast.add({ title: t("common.copied"), icon: "i-lucide-check" });
+  if (!lastResult.value) return
+  await navigator.clipboard.writeText(lastResult.value)
+  toast.add({ title: t('common.copied'), icon: 'i-lucide-check' })
 }
 </script>
 
@@ -100,8 +100,12 @@ async function handleCopy() {
     <template #body>
       <div class="flex flex-col items-center justify-center gap-8 py-12">
         <div class="text-center">
-          <h1 class="text-3xl font-bold mb-2">{{ $t('home.heading') }}</h1>
-          <p class="text-muted">{{ $t('home.subtitle') }}</p>
+          <h1 class="text-3xl font-bold mb-2">
+            {{ $t('home.heading') }}
+          </h1>
+          <p class="text-muted">
+            {{ $t('home.subtitle') }}
+          </p>
         </div>
 
         <div class="flex flex-col items-center gap-4">
@@ -114,7 +118,11 @@ async function handleCopy() {
             @click="toggleDictation"
           />
 
-          <UBadge :color="statusColor" variant="subtle" size="xl">
+          <UBadge
+            :color="statusColor"
+            variant="subtle"
+            size="xl"
+          >
             {{ statusText }}
           </UBadge>
         </div>
@@ -146,7 +154,7 @@ async function handleCopy() {
               class="flex-1 min-w-0.5 max-w-1.5 bg-red-500 rounded-t transition-all duration-150"
               :style="{
                 height: `${Math.max(4, level * 100)}%`,
-                opacity: 0.4 + (i / audioLevels.length) * 0.6,
+                opacity: 0.4 + (i / audioLevels.length) * 0.6
               }"
             />
           </div>
@@ -171,7 +179,10 @@ async function handleCopy() {
           </p>
         </div>
 
-        <div v-if="error" class="w-full max-w-lg">
+        <div
+          v-if="error"
+          class="w-full max-w-lg"
+        >
           <UAlert
             color="error"
             icon="i-lucide-alert-circle"
@@ -195,7 +206,7 @@ async function handleCopy() {
                   :class="{
                     'border-primary bg-primary/10 text-primary': getStageState(stage.key) === 'active',
                     'border-success bg-success/10 text-success': getStageState(stage.key) === 'completed',
-                    'border-muted bg-muted/5 text-muted': getStageState(stage.key) === 'pending',
+                    'border-muted bg-muted/5 text-muted': getStageState(stage.key) === 'pending'
                   }"
                 >
                   <UIcon
@@ -215,7 +226,7 @@ async function handleCopy() {
                   :class="{
                     'text-primary': getStageState(stage.key) === 'active',
                     'text-success': getStageState(stage.key) === 'completed',
-                    'text-muted': getStageState(stage.key) === 'pending',
+                    'text-muted': getStageState(stage.key) === 'pending'
                   }"
                 >
                   {{ stage.label }}
@@ -225,7 +236,7 @@ async function handleCopy() {
                   class="text-xs tabular-nums font-mono"
                   :class="{
                     'text-primary': getStageState(stage.key) === 'active',
-                    'text-muted': getStageState(stage.key) === 'completed',
+                    'text-muted': getStageState(stage.key) === 'completed'
                   }"
                 >
                   {{ stage.duration }}
@@ -236,14 +247,17 @@ async function handleCopy() {
                 class="w-12 h-0.5 mb-8 transition-colors duration-300"
                 :class="{
                   'bg-success': getStageState(timelineStages[i + 1].key) === 'completed' || getStageState(timelineStages[i + 1].key) === 'active',
-                  'bg-muted/30': getStageState(timelineStages[i + 1].key) === 'pending',
+                  'bg-muted/30': getStageState(timelineStages[i + 1].key) === 'pending'
                 }"
               />
             </div>
           </div>
         </div>
 
-        <div v-if="isRefining && refiningText" class="w-full max-w-2xl">
+        <div
+          v-if="isRefining && refiningText"
+          class="w-full max-w-2xl"
+        >
           <UCard>
             <template #header>
               <div class="flex items-center gap-2">
@@ -261,7 +275,10 @@ async function handleCopy() {
           </UCard>
         </div>
 
-        <div v-if="lastResult" class="w-full max-w-2xl">
+        <div
+          v-if="lastResult"
+          class="w-full max-w-2xl"
+        >
           <UCard>
             <template #header>
               <div class="flex items-center justify-between">

@@ -6,21 +6,7 @@ export default defineNuxtConfig({
     '@nuxtjs/i18n'
   ],
 
-  i18n: {
-    locales: [
-      { code: 'ar', name: 'العربية', dir: 'rtl', file: 'ar.json' },
-      { code: 'en', name: 'English', dir: 'ltr', file: 'en.json' }
-    ],
-    defaultLocale: 'ar',
-    langDir: 'locales',
-    strategy: 'no_prefix'
-  },
-
   ssr: false,
-
-  devServer: {
-    port: 3654
-  },
 
   devtools: {
     enabled: false
@@ -28,10 +14,8 @@ export default defineNuxtConfig({
 
   css: ['~/assets/css/main.css'],
 
-  fonts: {
-    families: [
-      { name: 'IBM Plex Sans Arabic', provider: 'google' }
-    ]
+  devServer: {
+    port: 3654
   },
 
   compatibilityDate: '2025-01-15',
@@ -43,5 +27,21 @@ export default defineNuxtConfig({
         braceStyle: '1tbs'
       }
     }
+  },
+
+  fonts: {
+    families: [
+      { name: 'IBM Plex Sans Arabic', provider: 'google' }
+    ]
+  },
+
+  i18n: {
+    locales: [
+      { code: 'ar', name: 'العربية', dir: 'rtl', file: 'ar.json' },
+      { code: 'en', name: 'English', dir: 'ltr', file: 'en.json' }
+    ],
+    defaultLocale: 'ar',
+    langDir: 'locales',
+    strategy: 'no_prefix'
   }
 })

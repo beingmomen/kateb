@@ -4,12 +4,11 @@ definePageMeta({
 })
 
 const { t } = useI18n()
-const { availableModels, isDownloading, downloadingModelId, downloadProgress, downloadedBytes, totalBytes, error, getAvailableModels, downloadModel, setActiveModel, hasActiveModel, formatBytes } = useModels()
-const { providers, getProviders, testSpecificProvider, isTestingConnection, connectionStatus, detectGpu } = useAI()
+const { availableModels, isDownloading, downloadingModelId, downloadProgress, downloadedBytes, totalBytes, getAvailableModels, downloadModel, setActiveModel, hasActiveModel, formatBytes } = useModels()
+const { providers, getProviders, detectGpu } = useAI()
 const { updateSetting } = useSettings()
 const router = useRouter()
 
-const totalSteps = 5
 const step = ref(1)
 const selectedModelId = ref(null)
 const downloadError = ref(null)
@@ -26,7 +25,6 @@ const aiChoice = ref('none')
 const selectedProvider = ref('claude')
 const apiKeyInput = ref('')
 const customAiUrl = ref('')
-const isSavingAi = ref(false)
 
 onMounted(async () => {
   try {
@@ -192,34 +190,62 @@ function lineClass(afterStep) {
           class="flex items-center justify-center w-8 h-8 rounded-full text-xs font-bold transition-all duration-300"
           :class="stepClass(1)"
         >
-          <UIcon v-if="step > 1" name="i-lucide-check" class="size-3.5" />
+          <UIcon
+            v-if="step > 1"
+            name="i-lucide-check"
+            class="size-3.5"
+          />
           <span v-else>1</span>
         </div>
-        <div class="w-6 h-0.5 rounded transition-all duration-300" :class="lineClass(1)" />
+        <div
+          class="w-6 h-0.5 rounded transition-all duration-300"
+          :class="lineClass(1)"
+        />
         <div
           class="flex items-center justify-center w-8 h-8 rounded-full text-xs font-bold transition-all duration-300"
           :class="stepClass(2)"
         >
-          <UIcon v-if="step > 2" name="i-lucide-check" class="size-3.5" />
+          <UIcon
+            v-if="step > 2"
+            name="i-lucide-check"
+            class="size-3.5"
+          />
           <span v-else>2</span>
         </div>
-        <div class="w-6 h-0.5 rounded transition-all duration-300" :class="lineClass(2)" />
+        <div
+          class="w-6 h-0.5 rounded transition-all duration-300"
+          :class="lineClass(2)"
+        />
         <div
           class="flex items-center justify-center w-8 h-8 rounded-full text-xs font-bold transition-all duration-300"
           :class="stepClass(3)"
         >
-          <UIcon v-if="step > 3" name="i-lucide-check" class="size-3.5" />
+          <UIcon
+            v-if="step > 3"
+            name="i-lucide-check"
+            class="size-3.5"
+          />
           <span v-else>3</span>
         </div>
-        <div class="w-6 h-0.5 rounded transition-all duration-300" :class="lineClass(3)" />
+        <div
+          class="w-6 h-0.5 rounded transition-all duration-300"
+          :class="lineClass(3)"
+        />
         <div
           class="flex items-center justify-center w-8 h-8 rounded-full text-xs font-bold transition-all duration-300"
           :class="stepClass(4)"
         >
-          <UIcon v-if="step > 4" name="i-lucide-check" class="size-3.5" />
+          <UIcon
+            v-if="step > 4"
+            name="i-lucide-check"
+            class="size-3.5"
+          />
           <span v-else>4</span>
         </div>
-        <div class="w-6 h-0.5 rounded transition-all duration-300" :class="lineClass(4)" />
+        <div
+          class="w-6 h-0.5 rounded transition-all duration-300"
+          :class="lineClass(4)"
+        />
         <div
           class="flex items-center justify-center w-8 h-8 rounded-full text-xs font-bold transition-all duration-300"
           :class="stepClass(5)"
@@ -242,26 +268,39 @@ function lineClass(afterStep) {
             </div>
 
             <div class="space-y-2">
-              <h1 class="text-2xl font-bold">{{ $t('welcome.title') }}</h1>
-              <p class="text-muted">{{ $t('welcome.subtitle') }}</p>
+              <h1 class="text-2xl font-bold">
+                {{ $t('welcome.title') }}
+              </h1>
+              <p class="text-muted">
+                {{ $t('welcome.subtitle') }}
+              </p>
             </div>
 
             <div class="space-y-3 text-sm text-muted text-right">
               <div class="flex items-center gap-3">
                 <div class="w-8 h-8 bg-primary-100 dark:bg-primary-900 rounded-lg flex items-center justify-center shrink-0">
-                  <UIcon name="i-lucide-zap" class="size-4 text-primary-500" />
+                  <UIcon
+                    name="i-lucide-zap"
+                    class="size-4 text-primary-500"
+                  />
                 </div>
                 <span>{{ $t('welcome.feature1') }}</span>
               </div>
               <div class="flex items-center gap-3">
                 <div class="w-8 h-8 bg-primary-100 dark:bg-primary-900 rounded-lg flex items-center justify-center shrink-0">
-                  <UIcon name="i-lucide-shield" class="size-4 text-primary-500" />
+                  <UIcon
+                    name="i-lucide-shield"
+                    class="size-4 text-primary-500"
+                  />
                 </div>
                 <span>{{ $t('welcome.feature2') }}</span>
               </div>
               <div class="flex items-center gap-3">
                 <div class="w-8 h-8 bg-primary-100 dark:bg-primary-900 rounded-lg flex items-center justify-center shrink-0">
-                  <UIcon name="i-lucide-sparkles" class="size-4 text-primary-500" />
+                  <UIcon
+                    name="i-lucide-sparkles"
+                    class="size-4 text-primary-500"
+                  />
                 </div>
                 <span>{{ $t('welcome.feature3') }}</span>
               </div>
@@ -291,8 +330,12 @@ function lineClass(afterStep) {
               {{ $t('common.back') }}
             </UButton>
             <div class="text-center flex-1">
-              <h2 class="text-xl font-bold">{{ $t('welcome.step2Title') }}</h2>
-              <p class="text-muted text-sm mt-1">{{ $t('welcome.step2Subtitle') }}</p>
+              <h2 class="text-xl font-bold">
+                {{ $t('welcome.step2Title') }}
+              </h2>
+              <p class="text-muted text-sm mt-1">
+                {{ $t('welcome.step2Subtitle') }}
+              </p>
             </div>
             <div class="w-20" />
           </div>
@@ -301,7 +344,10 @@ function lineClass(afterStep) {
             v-if="isDetectingGpu"
             class="flex items-center justify-center gap-2 text-sm text-muted"
           >
-            <UIcon name="i-lucide-loader-2" class="size-4 animate-spin" />
+            <UIcon
+              name="i-lucide-loader-2"
+              class="size-4 animate-spin"
+            />
             <span>{{ $t('welcome.detectingGpu') }}</span>
           </div>
 
@@ -328,13 +374,31 @@ function lineClass(afterStep) {
                 @click="gpuChoice = 'cpu'"
               >
                 <div class="flex justify-center">
-                  <div class="w-14 h-14 rounded-xl flex items-center justify-center" :class="gpuChoice === 'cpu' ? 'bg-primary-500' : 'bg-gray-200 dark:bg-gray-700'">
-                    <UIcon name="i-lucide-cpu" class="size-7" :class="gpuChoice === 'cpu' ? 'text-white' : ''" />
+                  <div
+                    class="w-14 h-14 rounded-xl flex items-center justify-center"
+                    :class="gpuChoice === 'cpu' ? 'bg-primary-500' : 'bg-gray-200 dark:bg-gray-700'"
+                  >
+                    <UIcon
+                      name="i-lucide-cpu"
+                      class="size-7"
+                      :class="gpuChoice === 'cpu' ? 'text-white' : ''"
+                    />
                   </div>
                 </div>
-                <h3 class="font-bold">{{ $t('welcome.cpuLabel') }}</h3>
-                <p class="text-xs text-muted">{{ $t('welcome.cpuDesc') }}</p>
-                <UBadge v-if="!gpuDetected?.cuda_available" color="primary" variant="subtle" size="xs">{{ $t('common.recommended') }}</UBadge>
+                <h3 class="font-bold">
+                  {{ $t('welcome.cpuLabel') }}
+                </h3>
+                <p class="text-xs text-muted">
+                  {{ $t('welcome.cpuDesc') }}
+                </p>
+                <UBadge
+                  v-if="!gpuDetected?.cuda_available"
+                  color="primary"
+                  variant="subtle"
+                  size="xs"
+                >
+                  {{ $t('common.recommended') }}
+                </UBadge>
               </div>
 
               <div
@@ -348,14 +412,39 @@ function lineClass(afterStep) {
                 @click="gpuDetected?.cuda_available && (gpuChoice = 'gpu')"
               >
                 <div class="flex justify-center">
-                  <div class="w-14 h-14 rounded-xl flex items-center justify-center" :class="gpuChoice === 'gpu' ? 'bg-primary-500' : 'bg-gray-200 dark:bg-gray-700'">
-                    <UIcon name="i-lucide-monitor" class="size-7" :class="gpuChoice === 'gpu' ? 'text-white' : ''" />
+                  <div
+                    class="w-14 h-14 rounded-xl flex items-center justify-center"
+                    :class="gpuChoice === 'gpu' ? 'bg-primary-500' : 'bg-gray-200 dark:bg-gray-700'"
+                  >
+                    <UIcon
+                      name="i-lucide-monitor"
+                      class="size-7"
+                      :class="gpuChoice === 'gpu' ? 'text-white' : ''"
+                    />
                   </div>
                 </div>
-                <h3 class="font-bold">{{ $t('welcome.gpuLabel') }}</h3>
-                <p class="text-xs text-muted">{{ $t('welcome.gpuDesc') }}</p>
-                <UBadge v-if="gpuDetected?.cuda_available" color="primary" variant="subtle" size="xs">{{ $t('common.recommended') }}</UBadge>
-                <UBadge v-else color="error" variant="subtle" size="xs">{{ $t('common.unavailable') }}</UBadge>
+                <h3 class="font-bold">
+                  {{ $t('welcome.gpuLabel') }}
+                </h3>
+                <p class="text-xs text-muted">
+                  {{ $t('welcome.gpuDesc') }}
+                </p>
+                <UBadge
+                  v-if="gpuDetected?.cuda_available"
+                  color="primary"
+                  variant="subtle"
+                  size="xs"
+                >
+                  {{ $t('common.recommended') }}
+                </UBadge>
+                <UBadge
+                  v-else
+                  color="error"
+                  variant="subtle"
+                  size="xs"
+                >
+                  {{ $t('common.unavailable') }}
+                </UBadge>
               </div>
             </div>
 
@@ -363,7 +452,10 @@ function lineClass(afterStep) {
               v-if="gpuChoice === 'gpu' && !gpuDetected?.cuda_available"
               class="bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200 p-3 rounded-lg text-sm flex items-start gap-2"
             >
-              <UIcon name="i-lucide-alert-triangle" class="size-4 mt-0.5 shrink-0" />
+              <UIcon
+                name="i-lucide-alert-triangle"
+                class="size-4 mt-0.5 shrink-0"
+              />
               <span>{{ $t('welcome.gpuWarning') }}</span>
             </div>
 
@@ -391,8 +483,12 @@ function lineClass(afterStep) {
               {{ $t('common.back') }}
             </UButton>
             <div class="text-center flex-1">
-              <h2 class="text-xl font-bold">{{ $t('welcome.step3Title') }}</h2>
-              <p class="text-muted text-sm mt-1">{{ $t('welcome.step3Subtitle') }}</p>
+              <h2 class="text-xl font-bold">
+                {{ $t('welcome.step3Title') }}
+              </h2>
+              <p class="text-muted text-sm mt-1">
+                {{ $t('welcome.step3Subtitle') }}
+              </p>
             </div>
             <div class="w-20" />
           </div>
@@ -406,13 +502,30 @@ function lineClass(afterStep) {
               @click="aiChoice = 'none'"
             >
               <div class="flex justify-center">
-                <div class="w-14 h-14 rounded-xl flex items-center justify-center" :class="aiChoice === 'none' ? 'bg-primary-500' : 'bg-gray-200 dark:bg-gray-700'">
-                  <UIcon name="i-lucide-shield-check" class="size-7" :class="aiChoice === 'none' ? 'text-white' : ''" />
+                <div
+                  class="w-14 h-14 rounded-xl flex items-center justify-center"
+                  :class="aiChoice === 'none' ? 'bg-primary-500' : 'bg-gray-200 dark:bg-gray-700'"
+                >
+                  <UIcon
+                    name="i-lucide-shield-check"
+                    class="size-7"
+                    :class="aiChoice === 'none' ? 'text-white' : ''"
+                  />
                 </div>
               </div>
-              <h3 class="font-bold">{{ $t('welcome.noRefinement') }}</h3>
-              <p class="text-xs text-muted">{{ $t('welcome.noRefinementDesc') }}</p>
-              <UBadge color="primary" variant="subtle" size="xs">{{ $t('common.recommended') }}</UBadge>
+              <h3 class="font-bold">
+                {{ $t('welcome.noRefinement') }}
+              </h3>
+              <p class="text-xs text-muted">
+                {{ $t('welcome.noRefinementDesc') }}
+              </p>
+              <UBadge
+                color="primary"
+                variant="subtle"
+                size="xs"
+              >
+                {{ $t('common.recommended') }}
+              </UBadge>
             </div>
 
             <div
@@ -423,12 +536,23 @@ function lineClass(afterStep) {
               @click="aiChoice = 'with_ai'"
             >
               <div class="flex justify-center">
-                <div class="w-14 h-14 rounded-xl flex items-center justify-center" :class="aiChoice === 'with_ai' ? 'bg-primary-500' : 'bg-gray-200 dark:bg-gray-700'">
-                  <UIcon name="i-lucide-sparkles" class="size-7" :class="aiChoice === 'with_ai' ? 'text-white' : ''" />
+                <div
+                  class="w-14 h-14 rounded-xl flex items-center justify-center"
+                  :class="aiChoice === 'with_ai' ? 'bg-primary-500' : 'bg-gray-200 dark:bg-gray-700'"
+                >
+                  <UIcon
+                    name="i-lucide-sparkles"
+                    class="size-7"
+                    :class="aiChoice === 'with_ai' ? 'text-white' : ''"
+                  />
                 </div>
               </div>
-              <h3 class="font-bold">{{ $t('welcome.withAi') }}</h3>
-              <p class="text-xs text-muted">{{ $t('welcome.withAiDesc') }}</p>
+              <h3 class="font-bold">
+                {{ $t('welcome.withAi') }}
+              </h3>
+              <p class="text-xs text-muted">
+                {{ $t('welcome.withAiDesc') }}
+              </p>
             </div>
           </div>
 
@@ -444,7 +568,9 @@ function lineClass(afterStep) {
                     : 'border-gray-200 dark:border-gray-700'"
                   @click="selectedProvider = p.id; apiKeyInput = ''; customAiUrl = ''"
                 >
-                  <p class="font-medium text-xs">{{ p.id === 'local' ? $t('welcome.customServer') : p.name }}</p>
+                  <p class="font-medium text-xs">
+                    {{ p.id === 'local' ? $t('welcome.customServer') : p.name }}
+                  </p>
                 </div>
               </div>
 
@@ -464,7 +590,9 @@ function lineClass(afterStep) {
                   placeholder="https://your-domain.com"
                   size="lg"
                 />
-                <p class="text-xs text-muted text-center">{{ $t('welcome.enterDomainOnly') }}</p>
+                <p class="text-xs text-muted text-center">
+                  {{ $t('welcome.enterDomainOnly') }}
+                </p>
                 <UInput
                   v-model="apiKeyInput"
                   type="password"
@@ -474,7 +602,9 @@ function lineClass(afterStep) {
                 />
               </template>
 
-              <p class="text-xs text-muted text-center">{{ $t('welcome.canChangeLater') }}</p>
+              <p class="text-xs text-muted text-center">
+                {{ $t('welcome.canChangeLater') }}
+              </p>
             </div>
           </template>
 
@@ -502,8 +632,12 @@ function lineClass(afterStep) {
               {{ $t('common.back') }}
             </UButton>
             <div class="text-center flex-1">
-              <h2 class="text-xl font-bold">{{ $t('welcome.step4Title') }}</h2>
-              <p class="text-muted text-sm mt-1">{{ $t('welcome.step4Subtitle') }}</p>
+              <h2 class="text-xl font-bold">
+                {{ $t('welcome.step4Title') }}
+              </h2>
+              <p class="text-muted text-sm mt-1">
+                {{ $t('welcome.step4Subtitle') }}
+              </p>
             </div>
             <div class="w-20" />
           </div>
@@ -527,8 +661,12 @@ function lineClass(afterStep) {
 
               <div class="space-y-3 pt-2">
                 <div class="text-center">
-                  <h3 class="font-bold">{{ m.name }}</h3>
-                  <p class="text-xs text-muted mt-1">{{ m.description_ar }}</p>
+                  <h3 class="font-bold">
+                    {{ m.name }}
+                  </h3>
+                  <p class="text-xs text-muted mt-1">
+                    {{ m.description_ar }}
+                  </p>
                 </div>
 
                 <div class="space-y-2 text-sm">
@@ -556,7 +694,10 @@ function lineClass(afterStep) {
                     :key="pro"
                     class="flex items-center gap-1 text-xs text-green-600 dark:text-green-400"
                   >
-                    <UIcon name="i-lucide-check" class="size-3" />
+                    <UIcon
+                      name="i-lucide-check"
+                      class="size-3"
+                    />
                     <span>{{ pro }}</span>
                   </div>
                   <div
@@ -564,7 +705,10 @@ function lineClass(afterStep) {
                     :key="con"
                     class="flex items-center gap-1 text-xs text-red-500 dark:text-red-400"
                   >
-                    <UIcon name="i-lucide-x" class="size-3" />
+                    <UIcon
+                      name="i-lucide-x"
+                      class="size-3"
+                    />
                     <span>{{ con }}</span>
                   </div>
                 </div>
@@ -576,7 +720,9 @@ function lineClass(afterStep) {
                       color="primary"
                       size="sm"
                     />
-                    <p class="text-xs text-muted text-center">{{ progressText }} ({{ Math.round(downloadProgress) }}%)</p>
+                    <p class="text-xs text-muted text-center">
+                      {{ progressText }} ({{ Math.round(downloadProgress) }}%)
+                    </p>
                   </div>
                 </template>
 
@@ -614,7 +760,10 @@ function lineClass(afterStep) {
             class="bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200 p-4 rounded-lg text-sm text-center space-y-3"
           >
             <div class="flex items-center justify-center gap-2">
-              <UIcon name="i-lucide-alert-circle" class="size-4" />
+              <UIcon
+                name="i-lucide-alert-circle"
+                class="size-4"
+              />
               <span>{{ downloadError }}</span>
             </div>
             <UButton
@@ -649,8 +798,12 @@ function lineClass(afterStep) {
             </div>
 
             <div class="space-y-2">
-              <h1 class="text-2xl font-bold">{{ $t('welcome.appReady') }}</h1>
-              <p class="text-muted">{{ successMessage }}</p>
+              <h1 class="text-2xl font-bold">
+                {{ $t('welcome.appReady') }}
+              </h1>
+              <p class="text-muted">
+                {{ successMessage }}
+              </p>
             </div>
 
             <div

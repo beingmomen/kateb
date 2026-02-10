@@ -1,5 +1,5 @@
 <script setup>
-const props = defineProps({
+const _props = defineProps({
   error: Object
 })
 
@@ -7,7 +7,10 @@ const handleError = () => clearError({ redirect: '/' })
 </script>
 
 <template>
-  <div dir="rtl" class="h-screen flex items-center justify-center p-8 bg-gray-50 dark:bg-gray-950">
+  <div
+    dir="rtl"
+    class="h-screen flex items-center justify-center p-8 bg-gray-50 dark:bg-gray-950"
+  >
     <div class="max-w-md w-full text-center space-y-6">
       <div class="flex justify-center">
         <div class="w-20 h-20 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">

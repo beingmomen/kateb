@@ -71,7 +71,9 @@ function openLink(url) {
               />
             </div>
           </div>
-          <h2 class="text-xl font-bold">{{ $t('support.heading') }}</h2>
+          <h2 class="text-xl font-bold">
+            {{ $t('support.heading') }}
+          </h2>
           <p class="text-muted max-w-md mx-auto">
             {{ $t('support.description') }}
           </p>
@@ -105,8 +107,12 @@ function openLink(url) {
                 />
               </div>
               <div class="flex-1">
-                <p class="font-semibold">{{ link.name }}</p>
-                <p class="text-sm text-muted">{{ link.description }}</p>
+                <p class="font-semibold">
+                  {{ link.name }}
+                </p>
+                <p class="text-sm text-muted">
+                  {{ link.description }}
+                </p>
               </div>
               <UIcon
                 name="i-lucide-external-link"
@@ -140,8 +146,12 @@ function openLink(url) {
                 />
               </div>
               <div>
-                <p class="font-medium">{{ feature.title }}</p>
-                <p class="text-sm text-muted">{{ feature.description }}</p>
+                <p class="font-medium">
+                  {{ feature.title }}
+                </p>
+                <p class="text-sm text-muted">
+                  {{ feature.description }}
+                </p>
               </div>
             </div>
           </div>

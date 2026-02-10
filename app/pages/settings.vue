@@ -90,14 +90,14 @@ async function loadAudioDevices() {
     audioDevices.value = devices || []
     const savedDevice = getSettingValue('audio_device', '')
     selectedAudioDevice.value = savedDevice || ''
-  } catch {}
+  } catch { /* ignore */ }
 }
 
 async function handleDeviceChange(deviceName) {
   selectedAudioDevice.value = deviceName
   try {
     await tauriInvoke('set_audio_device', { deviceName: deviceName || null })
-  } catch {}
+  } catch { /* ignore */ }
 }
 
 onMounted(async () => {
@@ -106,14 +106,14 @@ onMounted(async () => {
   loadFormFromSettings()
   try {
     activeModel.value = await getActiveModel()
-  } catch {}
+  } catch { /* ignore */ }
   try {
     const gpu = await detectGpu()
     gpuAvailable.value = gpu.cuda_available
     if (!gpuAvailable.value) {
       form.use_gpu = false
     }
-  } catch {}
+  } catch { /* ignore */ }
   await loadAudioDevices()
 })
 
@@ -364,7 +364,7 @@ async function handleSave() {
     if (shortcutChanged) {
       try {
         await tauriInvoke('update_shortcut', { shortcut: actualShortcut })
-      } catch {}
+      } catch { /* ignore */ }
     }
 
     if (gpuChanged) {
@@ -449,7 +449,10 @@ async function handleSave() {
               />
             </UFormField>
 
-            <div v-if="form.shortcut === 'custom'" class="space-y-3">
+            <div
+              v-if="form.shortcut === 'custom'"
+              class="space-y-3"
+            >
               <div class="flex gap-2">
                 <UInput
                   :model-value="customShortcutDisplay || $t('settings.shortcutPlaceholder')"
@@ -468,7 +471,9 @@ async function handleSave() {
                   {{ isRecordingShortcut ? $t('common.cancel') : $t('settings.shortcutRecord') }}
                 </UButton>
               </div>
-              <p class="text-xs text-muted">{{ $t('settings.shortcutHint') }}</p>
+              <p class="text-xs text-muted">
+                {{ $t('settings.shortcutHint') }}
+              </p>
             </div>
           </div>
         </UCard>
@@ -546,8 +551,12 @@ async function handleSave() {
           <div class="space-y-4">
             <div class="flex items-center justify-between">
               <div>
-                <p class="font-medium">{{ $t('settings.gpuLabel') }}</p>
-                <p class="text-sm text-muted">{{ $t('settings.gpuDesc') }}</p>
+                <p class="font-medium">
+                  {{ $t('settings.gpuLabel') }}
+                </p>
+                <p class="text-sm text-muted">
+                  {{ $t('settings.gpuDesc') }}
+                </p>
               </div>
               <USwitch
                 v-model="form.use_gpu"
@@ -593,8 +602,12 @@ async function handleSave() {
           <div class="space-y-4">
             <div class="flex items-center justify-between">
               <div>
-                <p class="font-medium">{{ $t('settings.autoPunctuation') }}</p>
-                <p class="text-sm text-muted">{{ $t('settings.autoPunctuationDesc') }}</p>
+                <p class="font-medium">
+                  {{ $t('settings.autoPunctuation') }}
+                </p>
+                <p class="text-sm text-muted">
+                  {{ $t('settings.autoPunctuationDesc') }}
+                </p>
               </div>
               <USwitch v-model="form.auto_punctuation" />
             </div>
@@ -603,8 +616,12 @@ async function handleSave() {
 
             <div class="flex items-center justify-between">
               <div>
-                <p class="font-medium">{{ $t('settings.autoType') }}</p>
-                <p class="text-sm text-muted">{{ $t('settings.autoTypeDesc') }}</p>
+                <p class="font-medium">
+                  {{ $t('settings.autoType') }}
+                </p>
+                <p class="text-sm text-muted">
+                  {{ $t('settings.autoTypeDesc') }}
+                </p>
               </div>
               <USwitch v-model="form.auto_type" />
             </div>
@@ -613,8 +630,12 @@ async function handleSave() {
 
             <div class="flex items-center justify-between">
               <div>
-                <p class="font-medium">{{ $t('settings.soundNotifications') }}</p>
-                <p class="text-sm text-muted">{{ $t('settings.soundNotificationsDesc') }}</p>
+                <p class="font-medium">
+                  {{ $t('settings.soundNotifications') }}
+                </p>
+                <p class="text-sm text-muted">
+                  {{ $t('settings.soundNotificationsDesc') }}
+                </p>
               </div>
               <USwitch v-model="form.sound_notifications" />
             </div>
@@ -623,8 +644,12 @@ async function handleSave() {
 
             <div class="flex items-center justify-between">
               <div>
-                <p class="font-medium">{{ $t('settings.autoStart') }}</p>
-                <p class="text-sm text-muted">{{ $t('settings.autoStartDesc') }}</p>
+                <p class="font-medium">
+                  {{ $t('settings.autoStart') }}
+                </p>
+                <p class="text-sm text-muted">
+                  {{ $t('settings.autoStartDesc') }}
+                </p>
               </div>
               <USwitch v-model="form.auto_start" />
             </div>
@@ -633,8 +658,12 @@ async function handleSave() {
 
             <div class="flex items-center justify-between">
               <div>
-                <p class="font-medium">{{ $t('settings.autoStopSilence') }}</p>
-                <p class="text-sm text-muted">{{ $t('settings.autoStopSilenceDesc') }}</p>
+                <p class="font-medium">
+                  {{ $t('settings.autoStopSilence') }}
+                </p>
+                <p class="text-sm text-muted">
+                  {{ $t('settings.autoStopSilenceDesc') }}
+                </p>
               </div>
               <USwitch v-model="form.auto_stop_silence" />
             </div>
@@ -666,8 +695,12 @@ async function handleSave() {
           <div class="space-y-4">
             <div class="flex items-center justify-between">
               <div>
-                <p class="font-medium">{{ $t('settings.aiEnable') }}</p>
-                <p class="text-sm text-muted">{{ $t('settings.aiEnableDesc') }}</p>
+                <p class="font-medium">
+                  {{ $t('settings.aiEnable') }}
+                </p>
+                <p class="text-sm text-muted">
+                  {{ $t('settings.aiEnableDesc') }}
+                </p>
               </div>
               <USwitch v-model="form.ai_refinement" />
             </div>
@@ -762,7 +795,9 @@ async function handleSave() {
                   icon="i-lucide-globe"
                   :placeholder="defaultUrlPlaceholder"
                 />
-                <p class="text-xs text-muted mt-1">{{ $t('settings.aiCustomUrlHint') }}</p>
+                <p class="text-xs text-muted mt-1">
+                  {{ $t('settings.aiCustomUrlHint') }}
+                </p>
               </UFormField>
 
               <UFormField
@@ -775,7 +810,9 @@ async function handleSave() {
                   icon="i-lucide-key"
                   placeholder="skip"
                 />
-                <p class="text-xs text-muted mt-1">{{ $t('settings.aiLocalKeyHint') }}</p>
+                <p class="text-xs text-muted mt-1">
+                  {{ $t('settings.aiLocalKeyHint') }}
+                </p>
               </UFormField>
 
               <UButton
@@ -793,16 +830,25 @@ async function handleSave() {
         <UCard>
           <template #header>
             <div class="flex items-center gap-2">
-              <UIcon name="i-lucide-hard-drive" class="text-lg" />
-              <h3 class="font-semibold">{{ $t('settings.backupSection') }}</h3>
+              <UIcon
+                name="i-lucide-hard-drive"
+                class="text-lg"
+              />
+              <h3 class="font-semibold">
+                {{ $t('settings.backupSection') }}
+              </h3>
             </div>
           </template>
 
           <div class="space-y-4">
             <div class="flex items-center justify-between">
               <div>
-                <p class="font-medium">{{ $t('settings.exportSettings') }}</p>
-                <p class="text-sm text-muted">{{ $t('settings.exportDesc') }}</p>
+                <p class="font-medium">
+                  {{ $t('settings.exportSettings') }}
+                </p>
+                <p class="text-sm text-muted">
+                  {{ $t('settings.exportDesc') }}
+                </p>
               </div>
               <UButton
                 variant="soft"
@@ -818,8 +864,12 @@ async function handleSave() {
 
             <div class="flex items-center justify-between">
               <div>
-                <p class="font-medium">{{ $t('settings.importSettings') }}</p>
-                <p class="text-sm text-muted">{{ $t('settings.importDesc') }}</p>
+                <p class="font-medium">
+                  {{ $t('settings.importSettings') }}
+                </p>
+                <p class="text-sm text-muted">
+                  {{ $t('settings.importDesc') }}
+                </p>
               </div>
               <UButton
                 variant="soft"

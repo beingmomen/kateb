@@ -119,7 +119,9 @@ function getProviderLabel(provider) {
             name="i-lucide-inbox"
             class="size-12 text-muted mx-auto mb-4"
           />
-          <p class="text-muted">{{ $t('history.noHistory') }}</p>
+          <p class="text-muted">
+            {{ $t('history.noHistory') }}
+          </p>
         </div>
 
         <div
@@ -132,7 +134,9 @@ function getProviderLabel(provider) {
           >
             <div class="flex items-start justify-between gap-4">
               <div class="flex-1 min-w-0">
-                <p class="text-base leading-relaxed whitespace-pre-wrap">{{ item.text }}</p>
+                <p class="text-base leading-relaxed whitespace-pre-wrap">
+                  {{ item.text }}
+                </p>
 
                 <UCollapsible
                   v-if="item.raw_text"
@@ -155,7 +159,10 @@ function getProviderLabel(provider) {
 
                 <div class="flex items-center gap-3 mt-2 text-sm text-muted flex-wrap">
                   <span class="flex items-center gap-1">
-                    <UIcon name="i-lucide-calendar" class="size-3.5" />
+                    <UIcon
+                      name="i-lucide-calendar"
+                      class="size-3.5"
+                    />
                     {{ formatDate(item.created_at) }}
                   </span>
                   <UBadge
@@ -164,7 +171,10 @@ function getProviderLabel(provider) {
                     size="xs"
                   />
                   <span class="flex items-center gap-1">
-                    <UIcon name="i-lucide-mic" class="size-3.5" />
+                    <UIcon
+                      name="i-lucide-mic"
+                      class="size-3.5"
+                    />
                     {{ formatDuration(item.duration) }}
                   </span>
                   <UBadge
@@ -179,7 +189,10 @@ function getProviderLabel(provider) {
                     v-if="item.processing_time_ms"
                     class="flex items-center gap-1"
                   >
-                    <UIcon name="i-lucide-timer" class="size-3.5" />
+                    <UIcon
+                      name="i-lucide-timer"
+                      class="size-3.5"
+                    />
                     {{ formatProcessingTime(item.processing_time_ms) }}
                   </span>
                 </div>
@@ -213,8 +226,12 @@ function getProviderLabel(provider) {
               name="i-lucide-alert-triangle"
               class="size-12 text-error mx-auto mb-4"
             />
-            <h3 class="text-lg font-semibold mb-2">{{ $t('history.clearAll') }}</h3>
-            <p class="text-muted mb-6">{{ $t('history.clearAllConfirm') }}</p>
+            <h3 class="text-lg font-semibold mb-2">
+              {{ $t('history.clearAll') }}
+            </h3>
+            <p class="text-muted mb-6">
+              {{ $t('history.clearAllConfirm') }}
+            </p>
             <div class="flex justify-center gap-3">
               <UButton
                 :label="$t('common.cancel')"
