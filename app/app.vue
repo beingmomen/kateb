@@ -5,14 +5,14 @@ const { locale } = useI18n()
 
 const uiLocale = computed(() => (locale.value === 'ar' ? ar : en))
 
-useHead({
+useHead(computed(() => ({
   meta: [{ name: 'viewport', content: 'width=device-width, initial-scale=1' }],
   link: [{ rel: 'icon', href: '/favicon.ico' }],
-  htmlAttrs: computed(() => ({
+  htmlAttrs: {
     lang: locale.value,
     dir: locale.value === 'ar' ? 'rtl' : 'ltr'
-  }))
-})
+  }
+})))
 
 const title = 'إملاء صوتي عربي'
 const description = 'تطبيق تحويل الصوت إلى نص عربي وإنجليزي باستخدام Whisper'
