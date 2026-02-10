@@ -16,20 +16,12 @@ jobs:
         include:
           - platform: ubuntu-22.04
             args: ''
-            cmake_c_flags: ''
-            cmake_cxx_flags: ''
           - platform: macos-latest
             args: '--target aarch64-apple-darwin'
-            cmake_c_flags: '-march=armv8.2-a+dotprod'
-            cmake_cxx_flags: '-march=armv8.2-a+dotprod'
           - platform: macos-latest
             args: '--target x86_64-apple-darwin'
-            cmake_c_flags: ''
-            cmake_cxx_flags: ''
           - platform: windows-latest
             args: ''
-            cmake_c_flags: ''
-            cmake_cxx_flags: ''
 
     runs-on: ${{ matrix.platform }}
 
@@ -80,10 +72,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           MACOSX_DEPLOYMENT_TARGET: ${{ matrix.platform == 'macos-latest' && '11.0' || '' }}
-          CMAKE_C_FLAGS: ${{ matrix.cmake_c_flags }}
-          CMAKE_CXX_FLAGS: ${{ matrix.cmake_cxx_flags }}
+          CMAKE_OSX_DEPLOYMENT_TARGET: ${{ matrix.platform == 'macos-latest' && '11.0' || '' }}
+          CFLAGS: ${{ contains(matrix.args, 'aarch64') && '-march=armv8.2-a+dotprod' || '' }}
+          CXXFLAGS: ${{ contains(matrix.args, 'aarch64') && '-march=armv8.2-a+dotprod' || '' }}
         with:
           tagName: v__VERSION__
           releaseName: 'Kateb v__VERSION__'
