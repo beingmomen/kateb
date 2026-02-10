@@ -68,7 +68,7 @@ impl ModelDownloader {
             serde_json::json!({ "status": "started", "model_id": model_id }),
         );
 
-        eprintln!("[model] Starting download of '{}' from: {}", info.name, url);
+        tracing::info!("[model] Starting download of '{}' from: {}", info.name, url);
 
         let response = self
             .client
@@ -120,7 +120,7 @@ impl ModelDownloader {
             );
 
             if downloaded % (10 * 1024 * 1024) < chunk.len() as u64 {
-                eprintln!(
+                tracing::debug!(
                     "[model] Downloaded {:.1}MB / {:.1}MB ({:.1}%)",
                     downloaded as f64 / 1024.0 / 1024.0,
                     total_size as f64 / 1024.0 / 1024.0,
@@ -134,6 +134,8 @@ impl ModelDownloader {
             .map_err(|e| AppError::DownloadError(format!("Failed to flush: {}", e)))?;
         drop(file);
 
+        Self::verify_download(&temp_path, info.size_bytes).await?;
+
         fs::rename(&temp_path, &model_path)
             .await
             .map_err(|e| AppError::DownloadError(format!("Failed to rename: {}", e)))?;
@@ -143,8 +145,34 @@ impl ModelDownloader {
             serde_json::json!({ "status": "completed", "model_id": model_id }),
         );
 
-        eprintln!("[model] Download completed: {:?}", model_path);
+        tracing::info!("[model] Download completed: {:?}", model_path);
         Ok(model_path)
+    }
+
+    async fn verify_download(path: &std::path::Path, expected_size: u64) -> Result<(), AppError> {
+        let metadata = fs::metadata(path)
+            .await
+            .map_err(|e| AppError::DownloadError(format!("Failed to read file metadata: {}", e)))?;
+
+        let actual_size = metadata.len();
+        let size_diff = (actual_size as i64 - expected_size as i64).unsigned_abs();
+        let tolerance = expected_size / 20;
+
+        if size_diff > tolerance {
+            let _ = fs::remove_file(path).await;
+            return Err(AppError::DownloadError(format!(
+                "Download verification failed: expected ~{:.1}MB but got {:.1}MB",
+                expected_size as f64 / 1024.0 / 1024.0,
+                actual_size as f64 / 1024.0 / 1024.0,
+            )));
+        }
+
+        tracing::info!(
+            "[model] Download verified: {:.1}MB (expected ~{:.1}MB)",
+            actual_size as f64 / 1024.0 / 1024.0,
+            expected_size as f64 / 1024.0 / 1024.0,
+        );
+        Ok(())
     }
 
     pub async fn delete_model_by_id(app: &tauri::AppHandle, model_id: &str) -> Result<(), AppError> {
@@ -153,7 +181,7 @@ impl ModelDownloader {
             fs::remove_file(&model_path)
                 .await
                 .map_err(|e| AppError::DownloadError(format!("Failed to delete: {}", e)))?;
-            eprintln!("[model] Model '{}' deleted: {:?}", model_id, model_path);
+            tracing::info!("[model] Model '{}' deleted: {:?}", model_id, model_path);
         }
         Ok(())
     }

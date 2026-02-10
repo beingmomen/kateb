@@ -64,7 +64,7 @@ impl AIRefiner for OpenAIRefiner {
             return Ok(text.to_string());
         }
 
-        eprintln!("[openai] Sending text for refinement: '{}'", text);
+        tracing::debug!("[openai] Sending text for refinement: '{}'", text);
         let _ = app.emit("ai-refine-status", json!({ "status": "started" }));
 
         let user_message = build_user_message(text, language);
@@ -138,7 +138,7 @@ impl AIRefiner for OpenAIRefiner {
 
         let refined = clean_refined_text(&full_text);
         let _ = app.emit("ai-refine-status", json!({ "status": "done" }));
-        eprintln!("[openai] Refinement complete: '{}'", refined);
+        tracing::debug!("[openai] Refinement complete: '{}'", refined);
         Ok(refined)
     }
 }

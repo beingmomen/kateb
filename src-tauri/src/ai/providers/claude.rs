@@ -65,7 +65,7 @@ impl AIRefiner for ClaudeRefiner {
             return Ok(text.to_string());
         }
 
-        eprintln!("[claude] Sending text for refinement: '{}'", text);
+        tracing::debug!("[claude] Sending text for refinement: '{}'", text);
         let _ = app.emit("ai-refine-status", json!({ "status": "started" }));
 
         let user_message = build_user_message(text, language);
@@ -134,7 +134,7 @@ impl AIRefiner for ClaudeRefiner {
 
         let refined = clean_refined_text(&full_text);
         let _ = app.emit("ai-refine-status", json!({ "status": "done" }));
-        eprintln!("[claude] Refinement complete: '{}'", refined);
+        tracing::debug!("[claude] Refinement complete: '{}'", refined);
         Ok(refined)
     }
 }

@@ -115,7 +115,7 @@ pub async fn set_active_model(
     let mut transcriber = state.transcriber.lock().map_err(|e| e.to_string())?;
     transcriber.load_model(&path, use_gpu).map_err(|e| e.to_string())?;
 
-    eprintln!("[model] Active model set to '{}': {:?}", model_id, path);
+    tracing::info!("[model] Active model set to '{}': {:?}", model_id, path);
     Ok(())
 }
 
@@ -185,7 +185,7 @@ pub async fn reload_model(
         .load_model(&path, use_gpu)
         .map_err(|e| e.to_string())?;
 
-    eprintln!(
+    tracing::info!(
         "[model] Reloaded model '{}' (GPU: {})",
         active_model_id, use_gpu
     );

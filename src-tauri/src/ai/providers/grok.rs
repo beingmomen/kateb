@@ -64,7 +64,7 @@ impl AIRefiner for GrokRefiner {
             return Ok(text.to_string());
         }
 
-        eprintln!("[grok] Sending text for refinement: '{}'", text);
+        tracing::debug!("[grok] Sending text for refinement: '{}'", text);
         let _ = app.emit("ai-refine-status", json!({ "status": "started" }));
 
         let user_message = build_user_message(text, language);
@@ -138,7 +138,7 @@ impl AIRefiner for GrokRefiner {
 
         let refined = clean_refined_text(&full_text);
         let _ = app.emit("ai-refine-status", json!({ "status": "done" }));
-        eprintln!("[grok] Refinement complete: '{}'", refined);
+        tracing::debug!("[grok] Refinement complete: '{}'", refined);
         Ok(refined)
     }
 }

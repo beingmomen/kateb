@@ -7,14 +7,14 @@ const donationLinks = [
   {
     name: 'Ko-fi',
     icon: 'i-lucide-coffee',
-    url: 'https://ko-fi.com/yourusername',
+    url: 'https://ko-fi.com/beingmomen',
     color: 'bg-[#FF5E5B]',
     description: 'ادعمنا بفنجان قهوة'
   },
   {
     name: 'Buy Me a Coffee',
     icon: 'i-lucide-heart',
-    url: 'https://buymeacoffee.com/yourusername',
+    url: 'https://buymeacoffee.com/beingmomen',
     color: 'bg-[#FFDD00]',
     description: 'تبرع لدعم التطوير'
   }
@@ -197,7 +197,7 @@ function openLink(url) {
               icon="i-lucide-github"
               variant="soft"
               block
-              @click="openLink('https://github.com/yourusername/arabic-voice-dictation')"
+              @click="openLink('https://github.com/beingmomen/kateb')"
             >
               زيارة المشروع على GitHub
             </UButton>

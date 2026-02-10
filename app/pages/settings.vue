@@ -4,16 +4,19 @@ definePageMeta({
 })
 
 const { fetchSettings, updateSetting, getSettingValue } = useSettings()
-const { providers, isTestingConnection, getProviders, testSpecificProvider } = useAI()
+const { providers, isTestingConnection, getProviders, testSpecificProvider, detectGpu } = useAI()
 const { getActiveModel, reloadModel } = useModels()
 const toast = useToast()
 
 const activeModel = ref(null)
 const isSaving = ref(false)
 const hasChanges = ref(false)
+const gpuAvailable = ref(false)
+const audioDevices = ref([])
+const selectedAudioDevice = ref('')
 
 const form = reactive({
-  shortcut: 'Z + Z',
+  shortcut: 'Z+Z',
   language: 'ar',
   auto_punctuation: true,
   sound_notifications: true,
@@ -40,7 +43,15 @@ const form = reactive({
 const original = reactive({ ...form })
 
 function loadFormFromSettings() {
-  form.shortcut = getSettingValue('shortcut', 'Z + Z')
+  const rawShortcut = getSettingValue('shortcut', 'Z+Z')
+  const cleanShortcut = rawShortcut.replace(/\s/g, '').replace(/^"(.*)"$/, '$1')
+  const predefined = ['Z+Z', 'Ctrl+Shift+D', 'Ctrl+Shift+R', 'Alt+S']
+  if (predefined.includes(cleanShortcut)) {
+    form.shortcut = cleanShortcut
+  } else {
+    form.shortcut = 'custom'
+    customShortcutDisplay.value = cleanShortcut
+  }
   form.language = getSettingValue('language', 'ar')
   form.auto_punctuation = getSettingValue('auto_punctuation', true)
   form.sound_notifications = getSettingValue('sound_notifications', true)
@@ -65,11 +76,28 @@ function loadFormFromSettings() {
   form.auto_stop_silence = autoStopVal === true || autoStopVal === 'true'
   form.auto_stop_seconds = Number(getSettingValue('auto_stop_seconds', 5))
   Object.assign(original, form)
+  original._actualShortcut = form.shortcut === 'custom' ? customShortcutDisplay.value : form.shortcut
 }
 
 watch(form, () => {
   hasChanges.value = JSON.stringify(form) !== JSON.stringify(original)
 }, { deep: true })
+
+async function loadAudioDevices() {
+  try {
+    const devices = await tauriInvoke('get_audio_devices')
+    audioDevices.value = devices || []
+    const savedDevice = getSettingValue('audio_device', '')
+    selectedAudioDevice.value = savedDevice || ''
+  } catch {}
+}
+
+async function handleDeviceChange(deviceName) {
+  selectedAudioDevice.value = deviceName
+  try {
+    await tauriInvoke('set_audio_device', { deviceName: deviceName || null })
+  } catch {}
+}
 
 onMounted(async () => {
   await fetchSettings()
@@ -78,7 +106,63 @@ onMounted(async () => {
   try {
     activeModel.value = await getActiveModel()
   } catch {}
+  try {
+    const gpu = await detectGpu()
+    gpuAvailable.value = gpu.cuda_available
+    if (!gpuAvailable.value) {
+      form.use_gpu = false
+    }
+  } catch {}
+  await loadAudioDevices()
 })
+
+const isRecordingShortcut = ref(false)
+const customShortcutDisplay = ref('')
+
+const shortcutOptions = [
+  { label: 'Z + Z (ضغط مزدوج)', value: 'Z+Z' },
+  { label: 'Ctrl + Shift + D', value: 'Ctrl+Shift+D' },
+  { label: 'Ctrl + Shift + R', value: 'Ctrl+Shift+R' },
+  { label: 'Alt + S', value: 'Alt+S' },
+  { label: 'مخصص...', value: 'custom' }
+]
+
+function handleShortcutChange(val) {
+  if (val === 'custom') {
+    isRecordingShortcut.value = false
+    customShortcutDisplay.value = ''
+  }
+}
+
+function startRecording() {
+  isRecordingShortcut.value = true
+  customShortcutDisplay.value = 'اضغط الاختصار المطلوب...'
+}
+
+function handleKeyCapture(event) {
+  if (!isRecordingShortcut.value) return
+  event.preventDefault()
+
+  const key = event.key
+  if (['Control', 'Shift', 'Alt', 'Meta'].includes(key)) return
+
+  const parts = []
+  if (event.ctrlKey) parts.push('Ctrl')
+  if (event.shiftKey) parts.push('Shift')
+  if (event.altKey) parts.push('Alt')
+  if (event.metaKey) parts.push('Meta')
+  parts.push(key.length === 1 ? key.toUpperCase() : key)
+
+  if (parts.length < 2) {
+    customShortcutDisplay.value = 'يجب استخدام مفتاح تعديل (Ctrl, Shift, Alt) مع مفتاح آخر'
+    return
+  }
+
+  const shortcut = parts.join('+')
+  customShortcutDisplay.value = shortcut
+  form.shortcut = shortcut
+  isRecordingShortcut.value = false
+}
 
 const languageOptions = [
   { label: 'العربية', value: 'ar' },
@@ -179,9 +263,11 @@ async function handleSave() {
   isSaving.value = true
   try {
     const gpuChanged = String(form.use_gpu) !== String(original.use_gpu)
+    const actualShortcut = form.shortcut === 'custom' ? customShortcutDisplay.value : form.shortcut
+    const shortcutChanged = actualShortcut !== (original._actualShortcut || original.shortcut)
 
     const settingsMap = {
-      shortcut: JSON.stringify(form.shortcut),
+      shortcut: actualShortcut,
       language: JSON.stringify(form.language),
       auto_punctuation: String(form.auto_punctuation),
       sound_notifications: String(form.sound_notifications),
@@ -207,6 +293,12 @@ async function handleSave() {
 
     for (const [key, value] of Object.entries(settingsMap)) {
       await updateSetting(key, value)
+    }
+
+    if (shortcutChanged) {
+      try {
+        await tauriInvoke('update_shortcut', { shortcut: actualShortcut })
+      } catch {}
     }
 
     if (gpuChanged) {
@@ -281,14 +373,38 @@ async function handleSave() {
             </div>
           </template>
 
-          <UFormField label="اختصار بدء/إيقاف الإملاء">
-            <UInput
-              :model-value="form.shortcut"
-              icon="i-lucide-command"
-              readonly
-              placeholder="Ctrl+Shift+D"
-            />
-          </UFormField>
+          <div class="space-y-4">
+            <UFormField label="اختصار بدء/إيقاف الإملاء">
+              <USelect
+                v-model="form.shortcut"
+                :items="shortcutOptions"
+                value-key="value"
+                @update:model-value="handleShortcutChange"
+              />
+            </UFormField>
+
+            <div v-if="form.shortcut === 'custom'" class="space-y-3">
+              <div class="flex gap-2">
+                <UInput
+                  :model-value="customShortcutDisplay || 'اضغط تسجيل ثم اختصارك'"
+                  icon="i-lucide-command"
+                  readonly
+                  class="flex-1"
+                  :class="isRecordingShortcut ? 'ring-2 ring-primary-500' : ''"
+                  @keydown="handleKeyCapture"
+                />
+                <UButton
+                  :variant="isRecordingShortcut ? 'solid' : 'soft'"
+                  :color="isRecordingShortcut ? 'error' : 'primary'"
+                  :icon="isRecordingShortcut ? 'i-lucide-circle-stop' : 'i-lucide-circle-dot'"
+                  @click="isRecordingShortcut ? (isRecordingShortcut = false) : startRecording()"
+                >
+                  {{ isRecordingShortcut ? 'إلغاء' : 'تسجيل' }}
+                </UButton>
+              </div>
+              <p class="text-xs text-muted">اضغط "تسجيل" ثم اضغط الاختصار المطلوب (مثلاً: Ctrl + Shift + M)</p>
+            </div>
+          </div>
         </UCard>
 
         <UCard>
@@ -327,6 +443,26 @@ async function handleSave() {
                 disabled
               />
             </UFormField>
+
+            <UFormField label="جهاز الميكروفون">
+              <div class="flex gap-2">
+                <USelect
+                  :model-value="selectedAudioDevice"
+                  :items="[
+                    { label: 'الافتراضي', value: '' },
+                    ...audioDevices.map(d => ({ label: d.name + (d.is_default ? ' (افتراضي)' : ''), value: d.name }))
+                  ]"
+                  value-key="value"
+                  class="flex-1"
+                  @update:model-value="handleDeviceChange"
+                />
+                <UButton
+                  variant="soft"
+                  icon="i-lucide-refresh-cw"
+                  @click="loadAudioDevices"
+                />
+              </div>
+            </UFormField>
           </div>
         </UCard>
 
@@ -347,18 +483,32 @@ async function handleSave() {
                 <p class="font-medium">استخدام GPU (كرت الشاشة)</p>
                 <p class="text-sm text-muted">تسريع المعالجة باستخدام NVIDIA CUDA - يحتاج كرت شاشة NVIDIA</p>
               </div>
-              <USwitch v-model="form.use_gpu" />
+              <USwitch
+                v-model="form.use_gpu"
+                :disabled="!gpuAvailable"
+              />
             </div>
 
             <div
-              v-if="form.use_gpu"
-              class="bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200 p-3 rounded-lg text-sm flex items-start gap-2"
+              v-if="!gpuAvailable"
+              class="bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 p-3 rounded-lg text-sm flex items-start gap-2"
             >
               <UIcon
-                name="i-lucide-alert-triangle"
+                name="i-lucide-info"
                 class="size-4 mt-0.5 shrink-0"
               />
-              <span>تأكد من وجود كرت شاشة NVIDIA مع تعريفات CUDA مثبتة. إذا لم يكن لديك، قم بتعطيل هذا الخيار لتجنب الأخطاء.</span>
+              <span>لم يتم اكتشاف كرت شاشة NVIDIA يدعم CUDA على جهازك. هذا الخيار غير متاح.</span>
+            </div>
+
+            <div
+              v-else-if="form.use_gpu"
+              class="bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-200 p-3 rounded-lg text-sm flex items-start gap-2"
+            >
+              <UIcon
+                name="i-lucide-check-circle"
+                class="size-4 mt-0.5 shrink-0"
+              />
+              <span>تم اكتشاف كرت شاشة NVIDIA يدعم CUDA. سيتم استخدام GPU لتسريع المعالجة.</span>
             </div>
           </div>
         </UCard>

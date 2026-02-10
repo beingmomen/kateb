@@ -3,14 +3,14 @@
   "version": "1.0.0",
   "identifier": "com.beingmomen.kateb",
   "build": {
-    "beforeBuildCommand": "pnpm build",
+    "beforeBuildCommand": "pnpm generate",
     "beforeDevCommand": "fuser -k 3654/tcp 2>/dev/null; pnpm dev",
     "devUrl": "http://localhost:3654",
     "frontendDist": "../.output/public"
   },
   "app": {
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://api.anthropic.com https://api.openai.com https://generativelanguage.googleapis.com https://api.x.ai http://localhost:* https://huggingface.co https://*.huggingface.co; img-src 'self' data: https:; font-src 'self' data:"
     },
     "windows": [
       {

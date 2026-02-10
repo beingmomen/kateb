@@ -50,14 +50,14 @@ impl WhisperTranscriber {
     }
 
     pub fn transcribe(&self, audio_data: &[f32]) -> Result<String, anyhow::Error> {
-        eprintln!("[whisper] transcribe called with {} samples ({:.1}s of audio)", audio_data.len(), audio_data.len() as f64 / 16000.0);
+        tracing::debug!("[whisper] transcribe called with {} samples ({:.1}s of audio)", audio_data.len(), audio_data.len() as f64 / 16000.0);
 
         let ctx = self
             .ctx
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("النموذج غير محمّل"))?;
 
-        eprintln!("[whisper] Model loaded, creating state...");
+        tracing::debug!("[whisper] Model loaded, creating state...");
         let mut state = ctx.create_state()
             .map_err(|e| anyhow::anyhow!("فشل إنشاء حالة Whisper: {}", e))?;
 
@@ -70,27 +70,27 @@ impl WhisperTranscriber {
         params.set_print_special(false);
         Self::apply_anti_hallucination(&mut params, &self.language);
 
-        eprintln!("[whisper] Running transcription with best_of=3 (language: {})...", self.language);
+        tracing::debug!("[whisper] Running transcription with best_of=3 (language: {})...", self.language);
         let start = std::time::Instant::now();
         state
             .full(params, audio_data)
             .map_err(|e| anyhow::anyhow!("فشل التحويل: {}", e))?;
-        eprintln!("[whisper] Transcription took {:.1}s", start.elapsed().as_secs_f64());
+        tracing::debug!("[whisper] Transcription took {:.1}s", start.elapsed().as_secs_f64());
 
         let num_segments = state.full_n_segments();
 
-        eprintln!("[whisper] Got {} segments", num_segments);
+        tracing::debug!("[whisper] Got {} segments", num_segments);
         let mut text = String::new();
         for i in 0..num_segments {
             if let Some(segment) = state.get_segment(i) {
                 if let Ok(seg_text) = segment.to_str() {
-                    eprintln!("[whisper] Segment {}: '{}'", i, seg_text);
+                    tracing::debug!("[whisper] Segment {}: '{}'", i, seg_text);
                     text.push_str(seg_text);
                 }
             }
         }
 
-        eprintln!("[whisper] Final text: '{}'", text.trim());
+        tracing::debug!("[whisper] Final text: '{}'", text.trim());
         Ok(text.trim().to_string())
     }
 

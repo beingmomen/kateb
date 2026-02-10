@@ -75,7 +75,7 @@ fn streaming_transcription_loop(streaming_active: Arc<AtomicBool>, app: tauri::A
     let mut last_processed_pos: usize = 0;
     let mut chunk_index: u32 = 0;
 
-    eprintln!("[streaming] Loop started");
+    tracing::debug!("[streaming] Loop started");
 
     let state: tauri::State<'_, DictationState> = app.state();
 
@@ -145,7 +145,7 @@ fn streaming_transcription_loop(streaming_active: Arc<AtomicBool>, app: tauri::A
                             "total": auto_stop_enabled.1
                         }));
                         if silence_dur >= auto_stop_enabled.1 {
-                            eprintln!("[streaming] Auto-stop: {:.1}s silence detected", silence_dur);
+                            tracing::info!("[streaming] Auto-stop: {:.1}s silence detected", silence_dur);
                             let _ = app.emit("dictation-auto-stop", serde_json::json!({}));
                             break;
                         }
@@ -175,7 +175,7 @@ fn streaming_transcription_loop(streaming_active: Arc<AtomicBool>, app: tauri::A
             let mut vad = state.vad.lock().unwrap();
             let is_speech = vad.feed(&chunk_audio);
             if !is_speech {
-                eprintln!("[streaming] VAD: no speech detected, skipping chunk");
+                tracing::debug!("[streaming] VAD: no speech detected, skipping chunk");
                 last_processed_pos = current_len;
 
                 if auto_stop_enabled.0 {
@@ -191,7 +191,7 @@ fn streaming_transcription_loop(streaming_active: Arc<AtomicBool>, app: tauri::A
                             "total": auto_stop_enabled.1
                         }));
                         if silence_dur >= auto_stop_enabled.1 {
-                            eprintln!("[streaming] Auto-stop: {:.1}s silence detected", silence_dur);
+                            tracing::info!("[streaming] Auto-stop: {:.1}s silence detected", silence_dur);
                             let _ = app.emit("dictation-auto-stop", serde_json::json!({}));
                             break;
                         }
@@ -211,7 +211,7 @@ fn streaming_transcription_loop(streaming_active: Arc<AtomicBool>, app: tauri::A
 
         let processed_audio = AudioPreprocessor::process(&chunk_audio);
 
-        eprintln!(
+        tracing::debug!(
             "[streaming] Processing chunk {} ({} samples, {:.1}s)",
             chunk_index,
             processed_audio.len(),
@@ -223,7 +223,7 @@ fn streaming_transcription_loop(streaming_active: Arc<AtomicBool>, app: tauri::A
             match transcriber.transcribe_chunk(&processed_audio) {
                 Ok(t) => t,
                 Err(e) => {
-                    eprintln!("[streaming] Chunk transcription error: {}", e);
+                    tracing::error!("[streaming] Chunk transcription error: {}", e);
                     last_processed_pos = current_len;
                     continue;
                 }
@@ -235,7 +235,7 @@ fn streaming_transcription_loop(streaming_active: Arc<AtomicBool>, app: tauri::A
 
         let chunk_duration = chunk_audio.len() as f32 / SAMPLE_RATE as f32;
         if !text.trim().is_empty() && !is_chunk_hallucination(&text, chunk_duration) {
-            eprintln!("[streaming] Chunk {} result: '{}'", chunk_index, text.trim());
+            tracing::debug!("[streaming] Chunk {} result: '{}'", chunk_index, text.trim());
 
             {
                 let mut acc = state.accumulated_text.lock().unwrap();
@@ -251,15 +251,15 @@ fn streaming_transcription_loop(streaming_active: Arc<AtomicBool>, app: tauri::A
                 }),
             );
         } else if !text.trim().is_empty() {
-            eprintln!("[streaming] Filtered chunk hallucination: '{}'", text.trim());
+            tracing::debug!("[streaming] Filtered chunk hallucination: '{}'", text.trim());
         }
     }
-    eprintln!("[streaming] Loop ended");
+    tracing::debug!("[streaming] Loop ended");
 }
 
 async fn stop_streaming_thread(state: &State<'_, DictationState>) -> Result<(), String> {
     state.streaming_active.store(false, Ordering::SeqCst);
-    eprintln!("[dictation] Waiting for streaming thread to finish...");
+    tracing::debug!("[dictation] Waiting for streaming thread to finish...");
 
     let handle = {
         let mut thread_handle = state.streaming_thread.lock().map_err(|e| e.to_string())?;
@@ -272,7 +272,7 @@ async fn stop_streaming_thread(state: &State<'_, DictationState>) -> Result<(), 
         .await
         .map_err(|e| e.to_string())?;
     }
-    eprintln!("[dictation] Streaming thread joined successfully");
+    tracing::debug!("[dictation] Streaming thread joined successfully");
     Ok(())
 }
 
@@ -281,12 +281,12 @@ fn capture_audio(state: &State<'_, DictationState>) -> Result<(Vec<f32>, u64), S
     let audio_data = match recorder.stop() {
         Ok(data) => data,
         Err(e) => {
-            eprintln!("[dictation] ERROR stopping recorder: {}", e);
+            tracing::error!("[dictation] ERROR stopping recorder: {}", e);
             return Err(e.to_string());
         }
     };
     let duration = recorder.get_duration_seconds();
-    eprintln!(
+    tracing::debug!(
         "[dictation] Audio captured: {} samples ({:.1}s), duration: {}s",
         audio_data.len(),
         audio_data.len() as f64 / SAMPLE_RATE as f64,
@@ -299,11 +299,11 @@ fn transcribe_audio(
     state: &State<'_, DictationState>,
     audio_data: &[f32],
 ) -> Result<String, String> {
-    eprintln!("[dictation] Starting final Whisper transcription on full audio...");
+    tracing::debug!("[dictation] Starting final Whisper transcription on full audio...");
     let transcriber = state.transcriber.lock().map_err(|e| e.to_string())?;
     match transcriber.transcribe(audio_data) {
         Ok(t) => {
-            eprintln!(
+            tracing::debug!(
                 "[dictation] Transcription complete: '{}' ({} chars)",
                 t,
                 t.len()
@@ -311,7 +311,7 @@ fn transcribe_audio(
             Ok(t)
         }
         Err(e) => {
-            eprintln!("[dictation] ERROR in transcription: {}", e);
+            tracing::error!("[dictation] ERROR in transcription: {}", e);
             Err(e.to_string())
         }
     }
@@ -360,31 +360,41 @@ async fn refine_with_ai(
     let refiner = match AIFactory::create_from_settings(db) {
         Ok(r) => r,
         Err(e) => {
-            eprintln!("[ai] Failed to create refiner: {}", e);
+            tracing::error!("[ai] Failed to create refiner: {}", e);
             return RefinementResult { text: text.to_string(), ai_provider: String::new(), processing_time_ms: 0 };
         }
     };
 
     let provider_name = refiner.provider_name().to_string();
-    eprintln!("[ai] AI refinement enabled, using {} (language: {})...", provider_name, language);
+    tracing::info!("[ai] AI refinement enabled, using {} (language: {})...", provider_name, language);
 
     let ai_start = std::time::Instant::now();
-    let result = match refiner.refine_streaming(text, &language, app).await {
-        Ok(refined) if !refined.trim().is_empty() => {
-            eprintln!("[ai] Refinement successful");
-            refined
+    let max_retries = 2u32;
+    let mut result = text.to_string();
+    for attempt in 0..=max_retries {
+        match refiner.refine_streaming(text, &language, app).await {
+            Ok(refined) if !refined.trim().is_empty() => {
+                tracing::debug!("[ai] Refinement successful (attempt {})", attempt + 1);
+                result = refined;
+                break;
+            }
+            Ok(_) => {
+                tracing::warn!("[ai] Refinement returned empty, using original");
+                break;
+            }
+            Err(e) => {
+                if attempt < max_retries {
+                    let delay = std::time::Duration::from_millis(500 * 2u64.pow(attempt));
+                    tracing::warn!("[ai] Attempt {} failed: {}, retrying in {:?}...", attempt + 1, e, delay);
+                    tokio::time::sleep(delay).await;
+                } else {
+                    tracing::error!("[ai] All {} attempts failed, using original: {}", max_retries + 1, e);
+                }
+            }
         }
-        Ok(_) => {
-            eprintln!("[ai] Refinement returned empty, using original");
-            text.to_string()
-        }
-        Err(e) => {
-            eprintln!("[ai] Refinement failed, using original: {}", e);
-            text.to_string()
-        }
-    };
+    }
     let processing_time_ms = ai_start.elapsed().as_millis() as u64;
-    eprintln!("[ai] Processing took {}ms", processing_time_ms);
+    tracing::debug!("[ai] Processing took {}ms", processing_time_ms);
 
     RefinementResult { text: result, ai_provider: provider_name, processing_time_ms }
 }
@@ -439,7 +449,7 @@ fn auto_type_text(db: &State<'_, Database>, text: &str) -> Result<(), String> {
     if auto_type == "true" {
         let simulator = KeyboardSimulator::new();
         if let Err(e) = simulator.type_text(text) {
-            eprintln!("Auto-type failed: {}", e);
+            tracing::error!("Auto-type failed: {}", e);
         }
     }
     Ok(())
@@ -499,7 +509,7 @@ pub async fn start_dictation(
             .to_string();
         let mut transcriber = state.transcriber.lock().map_err(|e| e.to_string())?;
         transcriber.set_language(&lang);
-        eprintln!("[dictation] Language set to: {}", lang);
+        tracing::debug!("[dictation] Language set to: {}", lang);
     }
 
     let recorder = state.recorder.lock().map_err(|e| e.to_string())?;
@@ -551,7 +561,7 @@ pub async fn stop_dictation(
     let (audio_data, duration) = capture_audio(&state)?;
 
     if audio_data.is_empty() {
-        eprintln!("[dictation] WARNING: Audio buffer is empty, nothing to transcribe");
+        tracing::warn!("[dictation] Audio buffer is empty, nothing to transcribe");
         let mut is_processing = state
             .is_processing
             .lock()
@@ -567,10 +577,10 @@ pub async fn stop_dictation(
     };
 
     let text = if !accumulated.trim().is_empty() {
-        eprintln!("[dictation] Using accumulated streaming text ({} chars), skipping re-transcription", accumulated.len());
+        tracing::debug!("[dictation] Using accumulated streaming text ({} chars), skipping re-transcription", accumulated.len());
         accumulated
     } else {
-        eprintln!("[dictation] No accumulated text, falling back to full re-transcription");
+        tracing::debug!("[dictation] No accumulated text, falling back to full re-transcription");
         match transcribe_audio(&state, &audio_data) {
             Ok(t) => t,
             Err(e) => {

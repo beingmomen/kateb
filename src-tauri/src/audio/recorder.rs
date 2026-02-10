@@ -10,6 +10,7 @@ pub struct AudioRecorder {
     start_time: Mutex<Option<Instant>>,
     last_duration: Mutex<u64>,
     sample_rate: u32,
+    selected_device: Mutex<Option<String>>,
 }
 
 impl AudioRecorder {
@@ -20,14 +21,46 @@ impl AudioRecorder {
             start_time: Mutex::new(None),
             last_duration: Mutex::new(0),
             sample_rate: 16000,
+            selected_device: Mutex::new(None),
         }
+    }
+
+    pub fn list_devices() -> Vec<(String, bool)> {
+        let host = cpal::default_host();
+        let default_name = host
+            .default_input_device()
+            .and_then(|d| d.name().ok())
+            .unwrap_or_default();
+
+        host.input_devices()
+            .map(|devices| {
+                devices
+                    .filter_map(|d| {
+                        let name = d.name().ok()?;
+                        let is_default = name == default_name;
+                        Some((name, is_default))
+                    })
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    pub fn set_device(&self, device_name: Option<String>) {
+        let mut selected = self.selected_device.lock().unwrap();
+        *selected = device_name;
     }
 
     pub fn start(&self) -> Result<(), anyhow::Error> {
         let host = cpal::default_host();
-        let device = host
-            .default_input_device()
-            .ok_or_else(|| anyhow::anyhow!("لا يوجد ميكروفون متصل"))?;
+        let selected = self.selected_device.lock().unwrap();
+        let device = if let Some(ref name) = *selected {
+            host.input_devices()?
+                .find(|d| d.name().ok().as_deref() == Some(name))
+                .ok_or_else(|| anyhow::anyhow!("جهاز الصوت '{}' غير موجود", name))?
+        } else {
+            host.default_input_device()
+                .ok_or_else(|| anyhow::anyhow!("لا يوجد ميكروفون متصل"))?
+        };
 
         let config = cpal::StreamConfig {
             channels: 1,
@@ -44,7 +77,7 @@ impl AudioRecorder {
         let log_counter = Arc::new(std::sync::atomic::AtomicU64::new(0));
         let log_counter_clone = Arc::clone(&log_counter);
 
-        eprintln!("[recorder] Starting audio stream: {}Hz, {} channel(s)", self.sample_rate, config.channels);
+        tracing::info!("[recorder] Starting audio stream: {}Hz, {} channel(s)", self.sample_rate, config.channels);
 
         let stream = device.build_input_stream(
             &config,
@@ -55,11 +88,11 @@ impl AudioRecorder {
                 }
                 let count = log_counter_clone.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                 if count % 100 == 0 {
-                    eprintln!("[recorder] Buffer: {} samples ({:.1}s)", buf.len(), buf.len() as f64 / 16000.0);
+                    tracing::debug!("[recorder] Buffer: {} samples ({:.1}s)", buf.len(), buf.len() as f64 / 16000.0);
                 }
             },
             |err| {
-                eprintln!("Audio stream error: {}", err);
+                tracing::error!("Audio stream error: {}", err);
             },
             None,
         )?;

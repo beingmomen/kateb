@@ -24,6 +24,7 @@ const isDetectingGpu = ref(false)
 const aiChoice = ref('none')
 const selectedProvider = ref('claude')
 const apiKeyInput = ref('')
+const customAiUrl = ref('')
 const isSavingAi = ref(false)
 
 onMounted(async () => {
@@ -73,6 +74,9 @@ async function goToStep4() {
     await updateSetting('ai_provider', selectedProvider.value)
     if (apiKeyInput.value) {
       await updateSetting(`${selectedProvider.value}_api_key`, apiKeyInput.value)
+    }
+    if (customAiUrl.value) {
+      await updateSetting(`${selectedProvider.value}_api_url`, customAiUrl.value)
     }
   }
   step.value = 4
@@ -134,8 +138,8 @@ const successMessage = computed(() => {
     : 'تم تفعيل النموذج بنجاح. جاري الانتقال للتطبيق...'
 })
 
-const externalProviders = computed(() => {
-  return (providers.value || []).filter(p => p.requires_key)
+const allProviders = computed(() => {
+  return providers.value || []
 })
 
 const apiKeyPlaceholder = computed(() => {
@@ -144,6 +148,7 @@ const apiKeyPlaceholder = computed(() => {
     case 'openai': return 'sk-...'
     case 'gemini': return 'AIza...'
     case 'grok': return 'xai-...'
+    case 'local': return 'اختياري'
     default: return ''
   }
 })
@@ -332,11 +337,14 @@ function lineClass(afterStep) {
               </div>
 
               <div
-                class="cursor-pointer rounded-xl border-2 p-5 text-center transition-all space-y-3"
-                :class="gpuChoice === 'gpu'
-                  ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
-                  : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'"
-                @click="gpuChoice = 'gpu'"
+                class="rounded-xl border-2 p-5 text-center transition-all space-y-3"
+                :class="[
+                  !gpuDetected?.cuda_available ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer',
+                  gpuChoice === 'gpu'
+                    ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
+                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                ]"
+                @click="gpuDetected?.cuda_available && (gpuChoice = 'gpu')"
               >
                 <div class="flex justify-center">
                   <div class="w-14 h-14 rounded-xl flex items-center justify-center" :class="gpuChoice === 'gpu' ? 'bg-primary-500' : 'bg-gray-200 dark:bg-gray-700'">
@@ -346,6 +354,7 @@ function lineClass(afterStep) {
                 <h3 class="font-bold">GPU (كرت الشاشة)</h3>
                 <p class="text-xs text-muted">أسرع بكثير - يحتاج كرت NVIDIA مع CUDA</p>
                 <UBadge v-if="gpuDetected?.cuda_available" color="primary" variant="subtle" size="xs">موصى به</UBadge>
+                <UBadge v-else color="error" variant="subtle" size="xs">غير متوفر</UBadge>
               </div>
             </div>
 
@@ -424,27 +433,45 @@ function lineClass(afterStep) {
 
           <template v-if="aiChoice === 'with_ai'">
             <div class="space-y-4">
-              <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div class="grid grid-cols-2 sm:grid-cols-5 gap-2">
                 <div
-                  v-for="p in externalProviders"
+                  v-for="p in allProviders"
                   :key="p.id"
                   class="cursor-pointer rounded-lg border-2 p-3 text-center text-sm transition-all"
                   :class="selectedProvider === p.id
                     ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
                     : 'border-gray-200 dark:border-gray-700'"
-                  @click="selectedProvider = p.id; apiKeyInput = ''"
+                  @click="selectedProvider = p.id; apiKeyInput = ''; customAiUrl = ''"
                 >
-                  <p class="font-medium text-xs">{{ p.name }}</p>
+                  <p class="font-medium text-xs">{{ p.id === 'local' ? 'سيرفر مخصص' : p.name }}</p>
                 </div>
               </div>
 
               <UInput
+                v-if="selectedProvider !== 'local'"
                 v-model="apiKeyInput"
                 type="password"
                 icon="i-lucide-key"
                 :placeholder="apiKeyPlaceholder"
                 size="lg"
               />
+
+              <template v-if="selectedProvider === 'local'">
+                <UInput
+                  v-model="customAiUrl"
+                  icon="i-lucide-globe"
+                  placeholder="https://your-domain.com"
+                  size="lg"
+                />
+                <p class="text-xs text-muted text-center">أدخل الدومين فقط — المسار يُضاف تلقائياً</p>
+                <UInput
+                  v-model="apiKeyInput"
+                  type="password"
+                  icon="i-lucide-key"
+                  placeholder="مفتاح API (اختياري)"
+                  size="lg"
+                />
+              </template>
 
               <p class="text-xs text-muted text-center">يمكنك تغيير هذا لاحقاً من الإعدادات</p>
             </div>
@@ -544,7 +571,7 @@ function lineClass(afterStep) {
                 <template v-if="isDownloading && downloadingModelId === m.id">
                   <div class="space-y-2">
                     <UProgress
-                      :value="downloadProgress"
+                      :model-value="downloadProgress"
                       color="primary"
                       size="sm"
                     />

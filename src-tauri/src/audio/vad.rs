@@ -46,7 +46,7 @@ impl AdaptiveVAD {
                 self.speech_threshold = (self.noise_floor * 3.0).max(0.003);
                 self.calibrated = true;
                 self.calibration_samples.clear();
-                eprintln!(
+                tracing::info!(
                     "[vad] Calibrated: noise_floor={:.6}, speech_threshold={:.6}",
                     self.noise_floor, self.speech_threshold
                 );

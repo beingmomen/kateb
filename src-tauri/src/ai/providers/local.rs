@@ -80,7 +80,7 @@ impl AIRefiner for LocalRefiner {
             return Ok(text.to_string());
         }
 
-        eprintln!("[local] Sending text for refinement: '{}'", text);
+        tracing::debug!("[local] Sending text for refinement: '{}'", text);
         let _ = app.emit("ai-refine-status", json!({ "status": "started" }));
 
         let user_message = build_user_message(text, language);
@@ -166,12 +166,12 @@ impl AIRefiner for LocalRefiner {
             || refined.contains("Please run /login")
         {
             let _ = app.emit("ai-refine-status", json!({ "status": "error" }));
-            eprintln!("[local] Auth error in response: '{}'", refined);
+            tracing::error!("[local] Auth error in response: '{}'", refined);
             return Err(AppError::AIError(format!("خطأ في المصادقة: {}", refined)));
         }
 
         let _ = app.emit("ai-refine-status", json!({ "status": "done" }));
-        eprintln!("[local] Refinement complete: '{}'", refined);
+        tracing::debug!("[local] Refinement complete: '{}'", refined);
         Ok(refined)
     }
 }

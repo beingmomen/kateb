@@ -204,7 +204,7 @@ function isActive(modelId) {
               <template v-if="isDownloading && downloadingModelId === m.id">
                 <div class="space-y-2">
                   <UProgress
-                    :value="downloadProgress"
+                    :model-value="downloadProgress"
                     color="primary"
                     size="sm"
                   />
