@@ -35,7 +35,12 @@
     "speed": "Speed",
     "memory": "Memory",
     "connectionFailed": "Connection failed",
-    "deleteAll": "Delete all"
+    "deleteAll": "Delete all",
+    "english": "English",
+    "seconds": "seconds",
+    "minutes": "minutes",
+    "hours": "hours",
+    "and": "and"
   },
   "updater": {
     "newVersion": "New update available: v{version}",

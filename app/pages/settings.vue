@@ -167,7 +167,7 @@ function handleKeyCapture(event) {
 
 const languageOptions = computed(() => [
   { label: t('settings.langArabic'), value: 'ar' },
-  { label: 'English', value: 'en' }
+  { label: t('common.english'), value: 'en' }
 ])
 
 const durationOptions = computed(() => [

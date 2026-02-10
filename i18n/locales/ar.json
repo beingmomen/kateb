@@ -35,7 +35,12 @@
     "speed": "السرعة",
     "memory": "الذاكرة",
     "connectionFailed": "فشل الاتصال",
-    "deleteAll": "حذف الكل"
+    "deleteAll": "حذف الكل",
+    "english": "إنجليزي",
+    "seconds": "ثانية",
+    "minutes": "دقيقة",
+    "hours": "ساعة",
+    "and": "و"
   },
   "updater": {
     "newVersion": "تحديث جديد متاح: v{version}",

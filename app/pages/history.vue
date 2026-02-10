@@ -166,7 +166,7 @@ function getProviderLabel(provider) {
                     {{ formatDate(item.created_at) }}
                   </span>
                   <UBadge
-                    :label="item.language === 'ar' ? $t('common.arabic') : 'English'"
+                    :label="item.language === 'ar' ? $t('common.arabic') : $t('common.english')"
                     variant="subtle"
                     size="xs"
                   />

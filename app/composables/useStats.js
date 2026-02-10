@@ -1,6 +1,7 @@
 import { tauriInvoke } from '~/utils/tauri'
 
 export function useStats() {
+  const { t } = useI18n()
   const dailyStats = ref([])
   const summary = ref(null)
   const loading = ref(false)
@@ -26,11 +27,11 @@ export function useStats() {
   }
 
   function formatDuration(seconds) {
-    if (seconds < 60) return `${seconds} ثانية`
-    if (seconds < 3600) return `${Math.floor(seconds / 60)} دقيقة`
+    if (seconds < 60) return `${seconds} ${t('common.seconds')}`
+    if (seconds < 3600) return `${Math.floor(seconds / 60)} ${t('common.minutes')}`
     const hours = Math.floor(seconds / 3600)
     const mins = Math.floor((seconds % 3600) / 60)
-    return `${hours} ساعة ${mins > 0 ? `و ${mins} دقيقة` : ''}`
+    return `${hours} ${t('common.hours')} ${mins > 0 ? `${t('common.and')} ${mins} ${t('common.minutes')}` : ''}`
   }
 
   return {
