@@ -176,12 +176,12 @@ All providers support custom API URLs for proxies and self-hosted solutions.
 
 | Platform | Download | Format |
 |----------|----------|--------|
-| **Linux** (Debian/Ubuntu) | [Kateb_1.0.1_amd64.deb](https://github.com/beingmomen/kateb/releases/download/v1.0.1/Kateb_1.0.1_amd64.deb) | `.deb` |
-| **Linux** (Universal) | [Kateb_1.0.1_amd64.AppImage](https://github.com/beingmomen/kateb/releases/download/v1.0.1/Kateb_1.0.1_amd64.AppImage) | `.AppImage` |
-| **macOS** (Apple Silicon) | [Kateb_1.0.1_aarch64.dmg](https://github.com/beingmomen/kateb/releases/download/v1.0.1/Kateb_1.0.1_aarch64.dmg) | `.dmg` |
-| **macOS** (Intel) | [Kateb_1.0.1_x64.dmg](https://github.com/beingmomen/kateb/releases/download/v1.0.1/Kateb_1.0.1_x64.dmg) | `.dmg` |
-| **Windows** (Installer) | [Kateb_1.0.1_x64-setup.exe](https://github.com/beingmomen/kateb/releases/download/v1.0.1/Kateb_1.0.1_x64-setup.exe) | `.exe` |
-| **Windows** (MSI) | [Kateb_1.0.1_x64_en-US.msi](https://github.com/beingmomen/kateb/releases/download/v1.0.1/Kateb_1.0.1_x64_en-US.msi) | `.msi` |
+| **Linux** (Debian/Ubuntu) | [Kateb_1.0.2_amd64.deb](https://github.com/beingmomen/kateb/releases/download/v1.0.2/Kateb_1.0.2_amd64.deb) | `.deb` |
+| **Linux** (Universal) | [Kateb_1.0.2_amd64.AppImage](https://github.com/beingmomen/kateb/releases/download/v1.0.2/Kateb_1.0.2_amd64.AppImage) | `.AppImage` |
+| **macOS** (Apple Silicon) | [Kateb_1.0.2_aarch64.dmg](https://github.com/beingmomen/kateb/releases/download/v1.0.2/Kateb_1.0.2_aarch64.dmg) | `.dmg` |
+| **macOS** (Intel) | [Kateb_1.0.2_x64.dmg](https://github.com/beingmomen/kateb/releases/download/v1.0.2/Kateb_1.0.2_x64.dmg) | `.dmg` |
+| **Windows** (Installer) | [Kateb_1.0.2_x64-setup.exe](https://github.com/beingmomen/kateb/releases/download/v1.0.2/Kateb_1.0.2_x64-setup.exe) | `.exe` |
+| **Windows** (MSI) | [Kateb_1.0.2_x64_en-US.msi](https://github.com/beingmomen/kateb/releases/download/v1.0.2/Kateb_1.0.2_x64_en-US.msi) | `.msi` |
 
 > [All releases](https://github.com/beingmomen/kateb/releases)
 

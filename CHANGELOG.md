@@ -4,6 +4,15 @@ All notable changes to Kateb will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.2] - 2026-02-10
+
+### Fixed
+- Models page showing blank — added loading spinner and error handling
+- Active model banner showing incorrectly when no model is set
+- Hardcoded 'English' strings now use proper i18n translations
+- Statistics time labels showing Arabic when app is in English mode
+- Modal placement in models page moved inside proper slot
+
 ## [1.0.1] - 2026-02-10
 
 ### Fixed
