@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="docs/screenshots/hero.png" alt="Kateb — Smart Voice Dictation for Arabic & English" width="100%">
+
 # كاتِب | Kateb
 
 ### Smart Voice Dictation for Arabic & English
