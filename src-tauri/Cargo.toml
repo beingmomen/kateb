@@ -7,6 +7,10 @@ license = "MIT"
 repository = "https://github.com/beingmomen/kateb"
 edition = "2021"
 
+[features]
+default = []
+cuda = ["whisper-rs/cuda"]
+
 [lib]
 name = "kateb_lib"
 crate-type = ["lib", "cdylib", "staticlib"]
@@ -25,7 +29,7 @@ serde_json = "1"
 rusqlite = { version = "0.31", features = ["bundled"] }
 chrono = { version = "0.4", features = ["serde"] }
 cpal = "0.15"
-whisper-rs = { version = "0.15", features = ["cuda"] }
+whisper-rs = "0.15"
 enigo = "0.2"
 arboard = "3"
 rdev = "0.5"

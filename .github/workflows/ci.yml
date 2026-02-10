@@ -1,27 +1,24 @@
-name: ci
+name: CI
 
-on: push
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
 
 jobs:
-  ci:
-    runs-on: ${{ matrix.os }}
-
-    strategy:
-      matrix:
-        os: [ubuntu-latest]
-        node: [22]
-
+  frontend:
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
 
-      - name: Install node
-        uses: actions/setup-node@v6
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node }}
+          node-version: 22
           cache: pnpm
 
       - name: Install dependencies
@@ -32,3 +29,31 @@ jobs:
 
       - name: Typecheck
         run: pnpm run typecheck
+
+  backend:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            libasound2-dev \
+            libxtst-dev \
+            cmake
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Check Rust compilation
+        working-directory: src-tauri
+        run: cargo check
