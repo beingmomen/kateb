@@ -1,4 +1,6 @@
 <script setup>
+const { updateAvailable, updateVersion, isDownloading, downloadProgress, checkForUpdates, downloadAndInstall, dismiss } = useUpdater()
+
 const items = [[
   {
     label: 'الرئيسية',
@@ -32,6 +34,10 @@ const items = [[
     to: '/support'
   }
 ]]
+
+onMounted(() => {
+  checkForUpdates()
+})
 </script>
 
 <template>
@@ -70,6 +76,21 @@ const items = [[
       </template>
     </UDashboardSidebar>
 
-    <slot />
+    <div class="flex flex-col flex-1 min-w-0">
+      <UAlert
+        v-if="updateAvailable"
+        icon="i-lucide-download"
+        color="info"
+        variant="subtle"
+        :title="`تحديث جديد متاح: v${updateVersion}`"
+        :description="isDownloading ? `جاري التحميل... ${downloadProgress}%` : 'اضغط لتحميل وتثبيت التحديث'"
+        :actions="isDownloading ? [] : [{ label: 'تحديث الآن', click: downloadAndInstall }]"
+        orientation="horizontal"
+        :close="!isDownloading"
+        @update:open="dismiss"
+      />
+
+      <slot />
+    </div>
   </UDashboardGroup>
 </template>

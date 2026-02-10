@@ -25,6 +25,8 @@ logs
 
 # Tauri
 src-tauri/target/
+src-tauri/.tauri-updater-key
+src-tauri/.tauri-updater-key.pub
 
 # Whisper model (too large for git)
 src-tauri/resources/*.bin
