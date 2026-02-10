@@ -43,7 +43,7 @@
 #### مكتبات النظام (Linux)
 
 ```bash
-sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libssl-dev libasound2-dev
+sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libssl-dev libasound2-dev cmake
 ```
 
 #### التشغيل
@@ -94,7 +94,7 @@ pnpm tauri dev
 #### System Libraries (Linux)
 
 ```bash
-sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libssl-dev libasound2-dev
+sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libssl-dev libasound2-dev cmake
 ```
 
 #### Run
@@ -153,9 +153,68 @@ Kateb supports optional AI text refinement to fix spelling, grammar, and punctua
 
 All providers support custom API URLs for proxies and self-hosted solutions.
 
+## Download
+
+Download the latest release for your platform from the [Releases page](https://github.com/beingmomen/kateb/releases).
+
+| Platform | Format |
+|----------|--------|
+| Linux | `.deb`, `.AppImage` |
+| macOS (Intel) | `.dmg` |
+| macOS (Apple Silicon) | `.dmg` |
+| Windows | `.msi`, `.exe` |
+
+## GPU Acceleration (Optional)
+
+Kateb supports NVIDIA CUDA for faster transcription. To build with GPU support:
+
+```bash
+cd src-tauri
+cargo build --release --features cuda
+```
+
+Requires [CUDA Toolkit](https://developer.nvidia.com/cuda-toolkit) installed. Without CUDA, Kateb uses CPU — works on all hardware, just slower on larger models.
+
+## Architecture
+
+```
+kateb/
+├── app/                    # Nuxt 4 frontend
+│   ├── pages/              # 7 pages (home, settings, models, history, stats, support, welcome)
+│   ├── composables/        # useModels, useAI, useSettings, useDictation, useAudioDevices
+│   ├── layouts/            # Dashboard layout with sidebar
+│   └── utils/tauri.js      # Tauri IPC wrappers with browser fallback
+├── src-tauri/              # Tauri 2 / Rust backend
+│   └── src/
+│       ├── ai/             # AI refinement (trait-based factory: 5 providers)
+│       ├── audio/          # Audio recording (cpal) + VAD (silence detection)
+│       ├── whisper/        # Speech-to-text transcription
+│       ├── models/         # Model download + integrity verification
+│       ├── security/       # OS keychain for API key storage
+│       ├── commands/       # 28 Tauri IPC commands
+│       ├── db/             # SQLite settings + migrations
+│       └── logging.rs      # Structured logging (file + stderr)
+└── .github/workflows/      # CI + cross-platform release
+```
+
+## Security
+
+- **API Keys**: Stored in OS keychain (Keychain on macOS, Secret Service on Linux, Credential Manager on Windows) — never in plain text
+- **Content Security Policy**: Restricts network connections to known AI API domains only
+- **Local Processing**: All speech-to-text runs on your device — audio never leaves your machine
+- **Download Verification**: Model files are verified after download for integrity
+
 ## Contributing
 
 Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) before submitting a pull request.
+
+## Support
+
+If you find Kateb useful, consider supporting the project:
+
+- [Ko-fi](https://ko-fi.com/beingmomen)
+- [Buy Me a Coffee](https://buymeacoffee.com/beingmomen)
+- Star this repo on [GitHub](https://github.com/beingmomen/kateb)
 
 ## License
 
