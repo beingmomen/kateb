@@ -44,6 +44,7 @@ jobs:
             librsvg2-dev \
             libasound2-dev \
             libxtst-dev \
+            libxdo-dev \
             cmake
 
       - name: Install Rust stable
