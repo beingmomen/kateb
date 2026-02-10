@@ -3,7 +3,7 @@ definePageMeta({
   layout: 'dashboard'
 })
 
-const { t } = useI18n()
+const { t, setLocale } = useI18n()
 const { fetchSettings, updateSetting, getSettingValue } = useSettings()
 const { providers, isTestingConnection, getProviders, testSpecificProvider, detectGpu } = useAI()
 const { getActiveModel, reloadModel } = useModels()
@@ -334,7 +334,7 @@ async function handleSave() {
 
     const settingsMap = {
       shortcut: actualShortcut,
-      language: JSON.stringify(form.language),
+      language: form.language,
       auto_punctuation: String(form.auto_punctuation),
       sound_notifications: String(form.sound_notifications),
       auto_start: String(form.auto_start),
@@ -390,6 +390,8 @@ async function handleSave() {
         color: 'success'
       })
     }
+
+    await setLocale(form.language)
 
     Object.assign(original, form)
     hasChanges.value = false

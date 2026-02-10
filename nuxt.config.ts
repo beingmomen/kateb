@@ -35,6 +35,12 @@ export default defineNuxtConfig({
     ]
   },
 
+  icon: {
+    clientBundle: {
+      scan: true
+    }
+  },
+
   i18n: {
     locales: [
       { code: 'ar', name: 'العربية', dir: 'rtl', file: 'ar.json' },
@@ -42,6 +48,7 @@ export default defineNuxtConfig({
     ],
     defaultLocale: 'ar',
     langDir: 'locales',
-    strategy: 'no_prefix'
+    strategy: 'no_prefix',
+    detectBrowserLanguage: false
   }
 })

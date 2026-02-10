@@ -4,6 +4,14 @@ All notable changes to Kateb will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.1] - 2026-02-10
+
+### Fixed
+- Icons not showing in built app — bundled all icons locally instead of loading from CDN
+- Default language now correctly set to Arabic — disabled browser language detection override
+- Language setting now applies immediately when changed in settings
+- Windows audio recording error "stream configuration not supported" — added automatic fallback to device-supported sample rate with resampling to 16kHz for Whisper compatibility
+
 ## [1.0.0] - 2025-02-09
 
 ### Added

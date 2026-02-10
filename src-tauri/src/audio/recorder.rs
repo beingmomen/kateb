@@ -1,16 +1,19 @@
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+use cpal::SampleFormat;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
-const MAX_BUFFER_SAMPLES: usize = 16000 * 600;
+const TARGET_SAMPLE_RATE: u32 = 16000;
+const MAX_BUFFER_SAMPLES: usize = TARGET_SAMPLE_RATE as usize * 600;
 
 pub struct AudioRecorder {
     buffer: Arc<Mutex<Vec<f32>>>,
     stream: Mutex<Option<cpal::Stream>>,
     start_time: Mutex<Option<Instant>>,
     last_duration: Mutex<u64>,
-    sample_rate: u32,
     selected_device: Mutex<Option<String>>,
+    actual_sample_rate: Mutex<u32>,
+    actual_channels: Mutex<u16>,
 }
 
 impl AudioRecorder {
@@ -20,8 +23,9 @@ impl AudioRecorder {
             stream: Mutex::new(None),
             start_time: Mutex::new(None),
             last_duration: Mutex::new(0),
-            sample_rate: 16000,
             selected_device: Mutex::new(None),
+            actual_sample_rate: Mutex::new(TARGET_SAMPLE_RATE),
+            actual_channels: Mutex::new(1),
         }
     }
 
@@ -50,6 +54,64 @@ impl AudioRecorder {
         *selected = device_name;
     }
 
+    fn negotiate_config(&self, device: &cpal::Device) -> Result<(cpal::StreamConfig, u32, u16), anyhow::Error> {
+        let preferred = cpal::StreamConfig {
+            channels: 1,
+            sample_rate: cpal::SampleRate(TARGET_SAMPLE_RATE),
+            buffer_size: cpal::BufferSize::Default,
+        };
+
+        let supported = device.supported_input_configs();
+        if let Ok(configs) = supported {
+            let configs: Vec<_> = configs.collect();
+
+            for cfg in &configs {
+                if cfg.sample_format() == SampleFormat::F32
+                    && cfg.channels() == 1
+                    && cfg.min_sample_rate().0 <= TARGET_SAMPLE_RATE
+                    && cfg.max_sample_rate().0 >= TARGET_SAMPLE_RATE
+                {
+                    tracing::info!("[recorder] Device supports 16kHz mono f32 directly");
+                    return Ok((preferred, TARGET_SAMPLE_RATE, 1));
+                }
+            }
+
+            for cfg in &configs {
+                if cfg.sample_format() == SampleFormat::F32
+                    && cfg.min_sample_rate().0 <= TARGET_SAMPLE_RATE
+                    && cfg.max_sample_rate().0 >= TARGET_SAMPLE_RATE
+                {
+                    let channels = cfg.channels();
+                    tracing::info!("[recorder] Using {}ch at 16kHz (will convert to mono)", channels);
+                    return Ok((
+                        cpal::StreamConfig {
+                            channels,
+                            sample_rate: cpal::SampleRate(TARGET_SAMPLE_RATE),
+                            buffer_size: cpal::BufferSize::Default,
+                        },
+                        TARGET_SAMPLE_RATE,
+                        channels,
+                    ));
+                }
+            }
+        }
+
+        let default_config = device.default_input_config()?;
+        let rate = default_config.sample_rate().0;
+        let channels = default_config.channels();
+        tracing::info!("[recorder] Falling back to device default: {}Hz, {}ch, {:?}", rate, channels, default_config.sample_format());
+
+        Ok((
+            cpal::StreamConfig {
+                channels,
+                sample_rate: cpal::SampleRate(rate),
+                buffer_size: cpal::BufferSize::Default,
+            },
+            rate,
+            channels,
+        ))
+    }
+
     pub fn start(&self) -> Result<(), anyhow::Error> {
         let host = cpal::default_host();
         let selected = self.selected_device.lock().unwrap();
@@ -62,11 +124,16 @@ impl AudioRecorder {
                 .ok_or_else(|| anyhow::anyhow!("لا يوجد ميكروفون متصل"))?
         };
 
-        let config = cpal::StreamConfig {
-            channels: 1,
-            sample_rate: cpal::SampleRate(self.sample_rate),
-            buffer_size: cpal::BufferSize::Default,
-        };
+        let (config, actual_rate, actual_channels) = self.negotiate_config(&device)?;
+
+        {
+            let mut r = self.actual_sample_rate.lock().unwrap();
+            *r = actual_rate;
+        }
+        {
+            let mut c = self.actual_channels.lock().unwrap();
+            *c = actual_channels;
+        }
 
         {
             let mut buf = self.buffer.lock().unwrap();
@@ -77,18 +144,19 @@ impl AudioRecorder {
         let log_counter = Arc::new(std::sync::atomic::AtomicU64::new(0));
         let log_counter_clone = Arc::clone(&log_counter);
 
-        tracing::info!("[recorder] Starting audio stream: {}Hz, {} channel(s)", self.sample_rate, config.channels);
+        tracing::info!("[recorder] Starting audio stream: {}Hz, {} channel(s)", actual_rate, actual_channels);
 
         let stream = device.build_input_stream(
             &config,
             move |data: &[f32], _: &cpal::InputCallbackInfo| {
                 let mut buf = buffer_clone.lock().unwrap();
-                if buf.len() + data.len() <= MAX_BUFFER_SAMPLES {
+                if buf.len() + data.len() <= MAX_BUFFER_SAMPLES * (actual_rate / TARGET_SAMPLE_RATE).max(1) as usize * actual_channels as usize {
                     buf.extend_from_slice(data);
                 }
                 let count = log_counter_clone.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                 if count % 100 == 0 {
-                    tracing::debug!("[recorder] Buffer: {} samples ({:.1}s)", buf.len(), buf.len() as f64 / 16000.0);
+                    let effective_samples = buf.len() / actual_channels as usize;
+                    tracing::debug!("[recorder] Buffer: {} samples ({:.1}s)", effective_samples, effective_samples as f64 / actual_rate as f64);
                 }
             },
             |err| {
@@ -128,8 +196,25 @@ impl AudioRecorder {
         let mut start = self.start_time.lock().unwrap();
         *start = None;
 
-        let buf = self.buffer.lock().unwrap();
-        Ok(buf.clone())
+        let raw_buf = {
+            let buf = self.buffer.lock().unwrap();
+            buf.clone()
+        };
+
+        let actual_rate = *self.actual_sample_rate.lock().unwrap();
+        let actual_channels = *self.actual_channels.lock().unwrap();
+
+        let mono = if actual_channels > 1 {
+            stereo_to_mono(&raw_buf, actual_channels)
+        } else {
+            raw_buf
+        };
+
+        if actual_rate != TARGET_SAMPLE_RATE {
+            Ok(resample(&mono, actual_rate, TARGET_SAMPLE_RATE))
+        } else {
+            Ok(mono)
+        }
     }
 
     pub fn get_duration_seconds(&self) -> u64 {
@@ -158,10 +243,42 @@ impl AudioRecorder {
         if buf.is_empty() {
             return 0.0;
         }
-        let recent: Vec<&f32> = buf.iter().rev().take(1600).collect();
+        let actual_channels = *self.actual_channels.lock().unwrap();
+        let sample_count = (1600 * actual_channels as usize).min(buf.len());
+        let recent: Vec<&f32> = buf.iter().rev().take(sample_count).collect();
         let rms: f32 = (recent.iter().map(|&&s| s * s).sum::<f32>() / recent.len() as f32).sqrt();
         rms.min(1.0)
     }
+}
+
+fn stereo_to_mono(data: &[f32], channels: u16) -> Vec<f32> {
+    let ch = channels as usize;
+    data.chunks(ch)
+        .map(|frame| frame.iter().sum::<f32>() / ch as f32)
+        .collect()
+}
+
+fn resample(data: &[f32], from_rate: u32, to_rate: u32) -> Vec<f32> {
+    if from_rate == to_rate || data.is_empty() {
+        return data.to_vec();
+    }
+    let ratio = from_rate as f64 / to_rate as f64;
+    let output_len = (data.len() as f64 / ratio) as usize;
+    let mut output = Vec::with_capacity(output_len);
+    for i in 0..output_len {
+        let src_pos = i as f64 * ratio;
+        let idx = src_pos as usize;
+        let frac = src_pos - idx as f64;
+        let sample = if idx + 1 < data.len() {
+            data[idx] * (1.0 - frac as f32) + data[idx + 1] * frac as f32
+        } else if idx < data.len() {
+            data[idx]
+        } else {
+            0.0
+        };
+        output.push(sample);
+    }
+    output
 }
 
 unsafe impl Send for AudioRecorder {}
