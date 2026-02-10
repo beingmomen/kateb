@@ -6,9 +6,10 @@
 
 **تطبيق إملاء صوتي ذكي يحول كلامك إلى نص مكتوب — يعمل بدون إنترنت**
 
-[![MIT License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![GitHub Stars](https://img.shields.io/github/stars/beingmomen/kateb?style=social)](https://github.com/beingmomen/kateb)
-[![GitHub Issues](https://img.shields.io/github/issues/beingmomen/kateb)](https://github.com/beingmomen/kateb/issues)
+[![Release](https://img.shields.io/github/v/release/beingmomen/kateb?label=Download&style=for-the-badge)](https://github.com/beingmomen/kateb/releases/latest)
+[![MIT License](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
+[![GitHub Stars](https://img.shields.io/github/stars/beingmomen/kateb?style=for-the-badge)](https://github.com/beingmomen/kateb)
+[![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-pink?style=for-the-badge)](https://github.com/sponsors/beingmomen)
 
 [العربية](#العربية) | [English](#english)
 
@@ -171,14 +172,16 @@ All providers support custom API URLs for proxies and self-hosted solutions.
 
 ## Download
 
-Download the latest release for your platform from the [Releases page](https://github.com/beingmomen/kateb/releases).
+| Platform | Download | Format |
+|----------|----------|--------|
+| **Linux** (Debian/Ubuntu) | [Kateb_1.0.0_amd64.deb](https://github.com/beingmomen/kateb/releases/download/v1.0.0/Kateb_1.0.0_amd64.deb) | `.deb` |
+| **Linux** (Universal) | [Kateb_1.0.0_amd64.AppImage](https://github.com/beingmomen/kateb/releases/download/v1.0.0/Kateb_1.0.0_amd64.AppImage) | `.AppImage` |
+| **macOS** (Apple Silicon) | [Kateb_1.0.0_aarch64.dmg](https://github.com/beingmomen/kateb/releases/download/v1.0.0/Kateb_1.0.0_aarch64.dmg) | `.dmg` |
+| **macOS** (Intel) | [Kateb_1.0.0_x64.dmg](https://github.com/beingmomen/kateb/releases/download/v1.0.0/Kateb_1.0.0_x64.dmg) | `.dmg` |
+| **Windows** (Installer) | [Kateb_1.0.0_x64-setup.exe](https://github.com/beingmomen/kateb/releases/download/v1.0.0/Kateb_1.0.0_x64-setup.exe) | `.exe` |
+| **Windows** (MSI) | [Kateb_1.0.0_x64_en-US.msi](https://github.com/beingmomen/kateb/releases/download/v1.0.0/Kateb_1.0.0_x64_en-US.msi) | `.msi` |
 
-| Platform | Format |
-|----------|--------|
-| Linux | `.deb`, `.AppImage` |
-| macOS (Intel) | `.dmg` |
-| macOS (Apple Silicon) | `.dmg` |
-| Windows | `.msi`, `.exe` |
+> [All releases](https://github.com/beingmomen/kateb/releases)
 
 ## GPU Acceleration (Optional)
 
@@ -224,10 +227,11 @@ kateb/
 
 Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) before submitting a pull request.
 
-## Support
+## Support | ادعم المشروع
 
 If you find Kateb useful, consider supporting the project:
 
+- [GitHub Sponsors](https://github.com/sponsors/beingmomen)
 - [Ko-fi](https://ko-fi.com/beingmomen)
 - [Buy Me a Coffee](https://buymeacoffee.com/beingmomen)
 - Star this repo on [GitHub](https://github.com/beingmomen/kateb)
