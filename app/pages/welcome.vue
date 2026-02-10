@@ -3,6 +3,7 @@ definePageMeta({
   layout: false
 })
 
+const { t } = useI18n()
 const { availableModels, isDownloading, downloadingModelId, downloadProgress, downloadedBytes, totalBytes, error, getAvailableModels, downloadModel, setActiveModel, hasActiveModel, formatBytes } = useModels()
 const { providers, getProviders, testSpecificProvider, isTestingConnection, connectionStatus, detectGpu } = useAI()
 const { updateSetting } = useSettings()
@@ -134,8 +135,8 @@ const progressText = computed(() => {
 
 const successMessage = computed(() => {
   return downloadComplete.value
-    ? 'تم تحميل النموذج وتفعيله بنجاح. جاري الانتقال للتطبيق...'
-    : 'تم تفعيل النموذج بنجاح. جاري الانتقال للتطبيق...'
+    ? t('welcome.modelDownloaded')
+    : t('welcome.modelActivated')
 })
 
 const allProviders = computed(() => {
@@ -148,7 +149,7 @@ const apiKeyPlaceholder = computed(() => {
     case 'openai': return 'sk-...'
     case 'gemini': return 'AIza...'
     case 'grok': return 'xai-...'
-    case 'local': return 'اختياري'
+    case 'local': return t('common.optional')
     default: return ''
   }
 })
@@ -158,7 +159,7 @@ function accuracyStars(level) {
 }
 
 function speedLabel(level) {
-  const labels = ['', '\u0628\u0637\u064A\u0621 \u062C\u062F\u0627\u064B', '\u0628\u0637\u064A\u0621', '\u0645\u062A\u0648\u0633\u0637', '\u0633\u0631\u064A\u0639', '\u0633\u0631\u064A\u0639 \u062C\u062F\u0627\u064B']
+  const labels = ['', t('welcome.speedVerySlow'), t('welcome.speedSlow'), t('welcome.speedMedium'), t('welcome.speedFast'), t('welcome.speedVeryFast')]
   return labels[level] || ''
 }
 
@@ -181,7 +182,7 @@ function lineClass(afterStep) {
           name="i-lucide-loader-2"
           class="size-5 animate-spin"
         />
-        <span>جاري التحقق...</span>
+        <span>{{ $t('welcome.checking') }}</span>
       </div>
     </template>
 
@@ -241,8 +242,8 @@ function lineClass(afterStep) {
             </div>
 
             <div class="space-y-2">
-              <h1 class="text-2xl font-bold">مرحباً بك في إملاء صوتي عربي</h1>
-              <p class="text-muted">تحويل الكلام إلى نص باستخدام الذكاء الاصطناعي</p>
+              <h1 class="text-2xl font-bold">{{ $t('welcome.title') }}</h1>
+              <p class="text-muted">{{ $t('welcome.subtitle') }}</p>
             </div>
 
             <div class="space-y-3 text-sm text-muted text-right">
@@ -250,19 +251,19 @@ function lineClass(afterStep) {
                 <div class="w-8 h-8 bg-primary-100 dark:bg-primary-900 rounded-lg flex items-center justify-center shrink-0">
                   <UIcon name="i-lucide-zap" class="size-4 text-primary-500" />
                 </div>
-                <span>تحويل صوتي سريع ودقيق باستخدام Whisper</span>
+                <span>{{ $t('welcome.feature1') }}</span>
               </div>
               <div class="flex items-center gap-3">
                 <div class="w-8 h-8 bg-primary-100 dark:bg-primary-900 rounded-lg flex items-center justify-center shrink-0">
                   <UIcon name="i-lucide-shield" class="size-4 text-primary-500" />
                 </div>
-                <span>يعمل محلياً - بياناتك لا تغادر جهازك</span>
+                <span>{{ $t('welcome.feature2') }}</span>
               </div>
               <div class="flex items-center gap-3">
                 <div class="w-8 h-8 bg-primary-100 dark:bg-primary-900 rounded-lg flex items-center justify-center shrink-0">
                   <UIcon name="i-lucide-sparkles" class="size-4 text-primary-500" />
                 </div>
-                <span>تحسين اختياري بالذكاء الاصطناعي (Claude / OpenAI / Gemini / Grok)</span>
+                <span>{{ $t('welcome.feature3') }}</span>
               </div>
             </div>
 
@@ -272,7 +273,7 @@ function lineClass(afterStep) {
               icon="i-lucide-arrow-left"
               @click="step = 2"
             >
-              ابدأ الآن
+              {{ $t('welcome.startNow') }}
             </UButton>
           </div>
         </UCard>
@@ -287,11 +288,11 @@ function lineClass(afterStep) {
               icon="i-lucide-arrow-right"
               @click="goBack"
             >
-              رجوع
+              {{ $t('common.back') }}
             </UButton>
             <div class="text-center flex-1">
-              <h2 class="text-xl font-bold">وضع المعالجة</h2>
-              <p class="text-muted text-sm mt-1">اختر طريقة معالجة الصوت حسب جهازك</p>
+              <h2 class="text-xl font-bold">{{ $t('welcome.step2Title') }}</h2>
+              <p class="text-muted text-sm mt-1">{{ $t('welcome.step2Subtitle') }}</p>
             </div>
             <div class="w-20" />
           </div>
@@ -301,7 +302,7 @@ function lineClass(afterStep) {
             class="flex items-center justify-center gap-2 text-sm text-muted"
           >
             <UIcon name="i-lucide-loader-2" class="size-4 animate-spin" />
-            <span>جاري فحص كرت الشاشة...</span>
+            <span>{{ $t('welcome.detectingGpu') }}</span>
           </div>
 
           <template v-else>
@@ -311,10 +312,10 @@ function lineClass(afterStep) {
               :class="gpuDetected.cuda_available ? 'text-green-600 dark:text-green-400' : 'text-muted'"
             >
               <template v-if="gpuDetected.cuda_available">
-                تم اكتشاف كرت شاشة NVIDIA يدعم CUDA
+                {{ $t('welcome.gpuDetected') }}
               </template>
               <template v-else>
-                لم يتم اكتشاف كرت شاشة NVIDIA - يُنصح باستخدام CPU
+                {{ $t('welcome.gpuNotDetected') }}
               </template>
             </div>
 
@@ -331,9 +332,9 @@ function lineClass(afterStep) {
                     <UIcon name="i-lucide-cpu" class="size-7" :class="gpuChoice === 'cpu' ? 'text-white' : ''" />
                   </div>
                 </div>
-                <h3 class="font-bold">CPU (المعالج)</h3>
-                <p class="text-xs text-muted">يعمل على كل الأجهزة بدون متطلبات إضافية</p>
-                <UBadge v-if="!gpuDetected?.cuda_available" color="primary" variant="subtle" size="xs">موصى به</UBadge>
+                <h3 class="font-bold">{{ $t('welcome.cpuLabel') }}</h3>
+                <p class="text-xs text-muted">{{ $t('welcome.cpuDesc') }}</p>
+                <UBadge v-if="!gpuDetected?.cuda_available" color="primary" variant="subtle" size="xs">{{ $t('common.recommended') }}</UBadge>
               </div>
 
               <div
@@ -351,10 +352,10 @@ function lineClass(afterStep) {
                     <UIcon name="i-lucide-monitor" class="size-7" :class="gpuChoice === 'gpu' ? 'text-white' : ''" />
                   </div>
                 </div>
-                <h3 class="font-bold">GPU (كرت الشاشة)</h3>
-                <p class="text-xs text-muted">أسرع بكثير - يحتاج كرت NVIDIA مع CUDA</p>
-                <UBadge v-if="gpuDetected?.cuda_available" color="primary" variant="subtle" size="xs">موصى به</UBadge>
-                <UBadge v-else color="error" variant="subtle" size="xs">غير متوفر</UBadge>
+                <h3 class="font-bold">{{ $t('welcome.gpuLabel') }}</h3>
+                <p class="text-xs text-muted">{{ $t('welcome.gpuDesc') }}</p>
+                <UBadge v-if="gpuDetected?.cuda_available" color="primary" variant="subtle" size="xs">{{ $t('common.recommended') }}</UBadge>
+                <UBadge v-else color="error" variant="subtle" size="xs">{{ $t('common.unavailable') }}</UBadge>
               </div>
             </div>
 
@@ -363,7 +364,7 @@ function lineClass(afterStep) {
               class="bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200 p-3 rounded-lg text-sm flex items-start gap-2"
             >
               <UIcon name="i-lucide-alert-triangle" class="size-4 mt-0.5 shrink-0" />
-              <span>لم يُكتشف كرت NVIDIA على جهازك. تأكد من تثبيت تعريفات CUDA أو استخدم وضع CPU.</span>
+              <span>{{ $t('welcome.gpuWarning') }}</span>
             </div>
 
             <UButton
@@ -372,7 +373,7 @@ function lineClass(afterStep) {
               icon="i-lucide-arrow-left"
               @click="goToStep3"
             >
-              التالي
+              {{ $t('common.next') }}
             </UButton>
           </template>
         </div>
@@ -387,11 +388,11 @@ function lineClass(afterStep) {
               icon="i-lucide-arrow-right"
               @click="goBack"
             >
-              رجوع
+              {{ $t('common.back') }}
             </UButton>
             <div class="text-center flex-1">
-              <h2 class="text-xl font-bold">تحسين النص بالذكاء الاصطناعي</h2>
-              <p class="text-muted text-sm mt-1">هل تريد تحسين النصوص تلقائياً بعد التحويل؟</p>
+              <h2 class="text-xl font-bold">{{ $t('welcome.step3Title') }}</h2>
+              <p class="text-muted text-sm mt-1">{{ $t('welcome.step3Subtitle') }}</p>
             </div>
             <div class="w-20" />
           </div>
@@ -409,9 +410,9 @@ function lineClass(afterStep) {
                   <UIcon name="i-lucide-shield-check" class="size-7" :class="aiChoice === 'none' ? 'text-white' : ''" />
                 </div>
               </div>
-              <h3 class="font-bold">بدون تحسين</h3>
-              <p class="text-xs text-muted">محلي 100% - بدون إنترنت</p>
-              <UBadge color="primary" variant="subtle" size="xs">موصى به</UBadge>
+              <h3 class="font-bold">{{ $t('welcome.noRefinement') }}</h3>
+              <p class="text-xs text-muted">{{ $t('welcome.noRefinementDesc') }}</p>
+              <UBadge color="primary" variant="subtle" size="xs">{{ $t('common.recommended') }}</UBadge>
             </div>
 
             <div
@@ -426,8 +427,8 @@ function lineClass(afterStep) {
                   <UIcon name="i-lucide-sparkles" class="size-7" :class="aiChoice === 'with_ai' ? 'text-white' : ''" />
                 </div>
               </div>
-              <h3 class="font-bold">مع تحسين AI</h3>
-              <p class="text-xs text-muted">تصحيح وترقيم تلقائي - يحتاج API key</p>
+              <h3 class="font-bold">{{ $t('welcome.withAi') }}</h3>
+              <p class="text-xs text-muted">{{ $t('welcome.withAiDesc') }}</p>
             </div>
           </div>
 
@@ -443,7 +444,7 @@ function lineClass(afterStep) {
                     : 'border-gray-200 dark:border-gray-700'"
                   @click="selectedProvider = p.id; apiKeyInput = ''; customAiUrl = ''"
                 >
-                  <p class="font-medium text-xs">{{ p.id === 'local' ? 'سيرفر مخصص' : p.name }}</p>
+                  <p class="font-medium text-xs">{{ p.id === 'local' ? $t('welcome.customServer') : p.name }}</p>
                 </div>
               </div>
 
@@ -463,17 +464,17 @@ function lineClass(afterStep) {
                   placeholder="https://your-domain.com"
                   size="lg"
                 />
-                <p class="text-xs text-muted text-center">أدخل الدومين فقط — المسار يُضاف تلقائياً</p>
+                <p class="text-xs text-muted text-center">{{ $t('welcome.enterDomainOnly') }}</p>
                 <UInput
                   v-model="apiKeyInput"
                   type="password"
                   icon="i-lucide-key"
-                  placeholder="مفتاح API (اختياري)"
+                  :placeholder="$t('welcome.apiKeyOptional')"
                   size="lg"
                 />
               </template>
 
-              <p class="text-xs text-muted text-center">يمكنك تغيير هذا لاحقاً من الإعدادات</p>
+              <p class="text-xs text-muted text-center">{{ $t('welcome.canChangeLater') }}</p>
             </div>
           </template>
 
@@ -483,7 +484,7 @@ function lineClass(afterStep) {
             icon="i-lucide-arrow-left"
             @click="goToStep4"
           >
-            التالي
+            {{ $t('common.next') }}
           </UButton>
         </div>
       </template>
@@ -498,11 +499,11 @@ function lineClass(afterStep) {
               :disabled="isDownloading"
               @click="goBack"
             >
-              رجوع
+              {{ $t('common.back') }}
             </UButton>
             <div class="text-center flex-1">
-              <h2 class="text-xl font-bold">اختر نموذج التعرف على الكلام</h2>
-              <p class="text-muted text-sm mt-1">كل النماذج تدعم اللغة العربية - اختر حسب جهازك واحتياجاتك</p>
+              <h2 class="text-xl font-bold">{{ $t('welcome.step4Title') }}</h2>
+              <p class="text-muted text-sm mt-1">{{ $t('welcome.step4Subtitle') }}</p>
             </div>
             <div class="w-20" />
           </div>
@@ -521,7 +522,7 @@ function lineClass(afterStep) {
                 v-if="m.recommended"
                 class="absolute -top-2 left-1/2 -translate-x-1/2 bg-primary-500 text-white text-xs px-3 py-0.5 rounded-full"
               >
-                موصى به
+                {{ $t('common.recommended') }}
               </div>
 
               <div class="space-y-3 pt-2">
@@ -532,19 +533,19 @@ function lineClass(afterStep) {
 
                 <div class="space-y-2 text-sm">
                   <div class="flex justify-between">
-                    <span class="text-muted">الحجم</span>
+                    <span class="text-muted">{{ $t('common.size') }}</span>
                     <span class="font-medium">{{ m.size_display }}</span>
                   </div>
                   <div class="flex justify-between">
-                    <span class="text-muted">الدقة</span>
+                    <span class="text-muted">{{ $t('common.accuracy') }}</span>
                     <span class="text-amber-500">{{ accuracyStars(m.accuracy) }}</span>
                   </div>
                   <div class="flex justify-between">
-                    <span class="text-muted">السرعة</span>
+                    <span class="text-muted">{{ $t('common.speed') }}</span>
                     <span class="font-medium">{{ speedLabel(m.speed) }}</span>
                   </div>
                   <div class="flex justify-between">
-                    <span class="text-muted">الذاكرة</span>
+                    <span class="text-muted">{{ $t('common.memory') }}</span>
                     <span class="font-medium">{{ m.ram_mb }} MB</span>
                   </div>
                 </div>
@@ -589,7 +590,7 @@ function lineClass(afterStep) {
                     :disabled="isActivating || isDownloading"
                     @click="handleActivate(m.id)"
                   >
-                    استخدام هذا النموذج
+                    {{ $t('welcome.useThisModel') }}
                   </UButton>
                 </template>
 
@@ -601,7 +602,7 @@ function lineClass(afterStep) {
                     :disabled="isDownloading"
                     @click="handleDownload(m.id)"
                   >
-                    تحميل ({{ m.size_display }})
+                    {{ $t('welcome.downloadSize', { size: m.size_display }) }}
                   </UButton>
                 </template>
               </div>
@@ -624,12 +625,12 @@ function lineClass(afterStep) {
               icon="i-lucide-refresh-cw"
               @click="handleRetry"
             >
-              إعادة المحاولة
+              {{ $t('common.retry') }}
             </UButton>
           </div>
 
           <p class="text-xs text-muted text-center">
-            يتم تحميل النماذج من HuggingFace ويتم حفظها محلياً على جهازك
+            {{ $t('welcome.modelsFromHf') }}
           </p>
         </div>
       </template>
@@ -648,7 +649,7 @@ function lineClass(afterStep) {
             </div>
 
             <div class="space-y-2">
-              <h1 class="text-2xl font-bold">التطبيق جاهز!</h1>
+              <h1 class="text-2xl font-bold">{{ $t('welcome.appReady') }}</h1>
               <p class="text-muted">{{ successMessage }}</p>
             </div>
 
@@ -660,7 +661,7 @@ function lineClass(afterStep) {
                 name="i-lucide-loader-2"
                 class="size-4 animate-spin"
               />
-              <span>جاري الانتقال...</span>
+              <span>{{ $t('welcome.redirecting') }}</span>
             </div>
 
             <UButton
@@ -669,7 +670,7 @@ function lineClass(afterStep) {
               icon="i-lucide-arrow-left"
               @click="router.push('/')"
             >
-              الذهاب للتطبيق
+              {{ $t('welcome.goToApp') }}
             </UButton>
           </div>
         </UCard>

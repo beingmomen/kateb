@@ -3,6 +3,7 @@ definePageMeta({
   layout: 'dashboard'
 })
 
+const { t } = useI18n()
 const { fetchSettings, updateSetting, getSettingValue } = useSettings()
 const { providers, isTestingConnection, getProviders, testSpecificProvider, detectGpu } = useAI()
 const { getActiveModel, reloadModel } = useModels()
@@ -119,13 +120,13 @@ onMounted(async () => {
 const isRecordingShortcut = ref(false)
 const customShortcutDisplay = ref('')
 
-const shortcutOptions = [
-  { label: 'Z + Z (ضغط مزدوج)', value: 'Z+Z' },
+const shortcutOptions = computed(() => [
+  { label: t('settings.shortcutZZ'), value: 'Z+Z' },
   { label: 'Ctrl + Shift + D', value: 'Ctrl+Shift+D' },
   { label: 'Ctrl + Shift + R', value: 'Ctrl+Shift+R' },
   { label: 'Alt + S', value: 'Alt+S' },
-  { label: 'مخصص...', value: 'custom' }
-]
+  { label: t('settings.shortcutCustom'), value: 'custom' }
+])
 
 function handleShortcutChange(val) {
   if (val === 'custom') {
@@ -136,7 +137,7 @@ function handleShortcutChange(val) {
 
 function startRecording() {
   isRecordingShortcut.value = true
-  customShortcutDisplay.value = 'اضغط الاختصار المطلوب...'
+  customShortcutDisplay.value = t('settings.shortcutRecording')
 }
 
 function handleKeyCapture(event) {
@@ -154,7 +155,7 @@ function handleKeyCapture(event) {
   parts.push(key.length === 1 ? key.toUpperCase() : key)
 
   if (parts.length < 2) {
-    customShortcutDisplay.value = 'يجب استخدام مفتاح تعديل (Ctrl, Shift, Alt) مع مفتاح آخر'
+    customShortcutDisplay.value = t('settings.shortcutModifierRequired')
     return
   }
 
@@ -164,24 +165,24 @@ function handleKeyCapture(event) {
   isRecordingShortcut.value = false
 }
 
-const languageOptions = [
-  { label: 'العربية', value: 'ar' },
+const languageOptions = computed(() => [
+  { label: t('settings.langArabic'), value: 'ar' },
   { label: 'English', value: 'en' }
-]
+])
 
-const durationOptions = [
-  { label: '١ دقيقة', value: 60 },
-  { label: '٣ دقائق', value: 180 },
-  { label: '٥ دقائق', value: 300 },
-  { label: '١٠ دقائق', value: 600 }
-]
+const durationOptions = computed(() => [
+  { label: t('settings.duration1m'), value: 60 },
+  { label: t('settings.duration3m'), value: 180 },
+  { label: t('settings.duration5m'), value: 300 },
+  { label: t('settings.duration10m'), value: 600 }
+])
 
-const autoStopOptions = [
-  { label: '٣ ثواني', value: 3 },
-  { label: '٥ ثواني', value: 5 },
-  { label: '١٠ ثواني', value: 10 },
-  { label: '١٥ ثانية', value: 15 }
-]
+const autoStopOptions = computed(() => [
+  { label: t('settings.silence3s'), value: 3 },
+  { label: t('settings.silence5s'), value: 5 },
+  { label: t('settings.silence10s'), value: 10 },
+  { label: t('settings.silence15s'), value: 15 }
+])
 
 const providerOptions = computed(() => {
   return providers.value.map(p => ({
@@ -251,7 +252,7 @@ async function testConnection() {
     })
   } else {
     toast.add({
-      title: 'فشل الاتصال',
+      title: t('common.connectionFailed'),
       description: result.message,
       icon: 'i-lucide-alert-circle',
       color: 'error'
@@ -305,21 +306,21 @@ async function handleSave() {
       try {
         await reloadModel()
         toast.add({
-          title: 'تم حفظ الإعدادات وإعادة تحميل النموذج',
+          title: t('settings.savedWithReload'),
           icon: 'i-lucide-check',
           color: 'success'
         })
       } catch {
         toast.add({
-          title: 'تم حفظ الإعدادات',
-          description: 'لم يتم إعادة تحميل النموذج - تأكد من وجود نموذج نشط',
+          title: t('settings.savedSuccess'),
+          description: t('settings.savedNoReload'),
           icon: 'i-lucide-alert-triangle',
           color: 'warning'
         })
       }
     } else {
       toast.add({
-        title: 'تم حفظ الإعدادات',
+        title: t('settings.savedSuccess'),
         icon: 'i-lucide-check',
         color: 'success'
       })
@@ -329,7 +330,7 @@ async function handleSave() {
     hasChanges.value = false
   } catch (e) {
     toast.add({
-      title: 'خطأ في حفظ الإعدادات',
+      title: t('settings.saveError'),
       description: String(e),
       icon: 'i-lucide-alert-circle',
       color: 'error'
@@ -343,7 +344,7 @@ async function handleSave() {
 <template>
   <UDashboardPanel id="settings">
     <template #header>
-      <UDashboardNavbar title="الإعدادات">
+      <UDashboardNavbar :title="$t('settings.title')">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
@@ -354,7 +355,7 @@ async function handleSave() {
             :disabled="!hasChanges"
             @click="handleSave"
           >
-            حفظ الإعدادات
+            {{ $t('settings.saveSettings') }}
           </UButton>
         </template>
       </UDashboardNavbar>
@@ -369,12 +370,12 @@ async function handleSave() {
                 name="i-lucide-keyboard"
                 class="size-5"
               />
-              <span class="font-semibold">اختصار لوحة المفاتيح</span>
+              <span class="font-semibold">{{ $t('settings.shortcutSection') }}</span>
             </div>
           </template>
 
           <div class="space-y-4">
-            <UFormField label="اختصار بدء/إيقاف الإملاء">
+            <UFormField :label="$t('settings.shortcutLabel')">
               <USelect
                 v-model="form.shortcut"
                 :items="shortcutOptions"
@@ -386,7 +387,7 @@ async function handleSave() {
             <div v-if="form.shortcut === 'custom'" class="space-y-3">
               <div class="flex gap-2">
                 <UInput
-                  :model-value="customShortcutDisplay || 'اضغط تسجيل ثم اختصارك'"
+                  :model-value="customShortcutDisplay || $t('settings.shortcutPlaceholder')"
                   icon="i-lucide-command"
                   readonly
                   class="flex-1"
@@ -399,10 +400,10 @@ async function handleSave() {
                   :icon="isRecordingShortcut ? 'i-lucide-circle-stop' : 'i-lucide-circle-dot'"
                   @click="isRecordingShortcut ? (isRecordingShortcut = false) : startRecording()"
                 >
-                  {{ isRecordingShortcut ? 'إلغاء' : 'تسجيل' }}
+                  {{ isRecordingShortcut ? $t('common.cancel') : $t('settings.shortcutRecord') }}
                 </UButton>
               </div>
-              <p class="text-xs text-muted">اضغط "تسجيل" ثم اضغط الاختصار المطلوب (مثلاً: Ctrl + Shift + M)</p>
+              <p class="text-xs text-muted">{{ $t('settings.shortcutHint') }}</p>
             </div>
           </div>
         </UCard>
@@ -414,12 +415,12 @@ async function handleSave() {
                 name="i-lucide-languages"
                 class="size-5"
               />
-              <span class="font-semibold">اللغة والنموذج</span>
+              <span class="font-semibold">{{ $t('settings.langSection') }}</span>
             </div>
           </template>
 
           <div class="space-y-4">
-            <UFormField label="لغة الإملاء">
+            <UFormField :label="$t('settings.langLabel')">
               <USelect
                 v-model="form.language"
                 :items="languageOptions"
@@ -427,7 +428,7 @@ async function handleSave() {
               />
             </UFormField>
 
-            <UFormField label="مدة التسجيل القصوى">
+            <UFormField :label="$t('settings.maxDuration')">
               <USelect
                 v-model="form.max_recording_duration"
                 :items="durationOptions"
@@ -435,22 +436,22 @@ async function handleSave() {
               />
             </UFormField>
 
-            <UFormField label="نموذج Whisper">
+            <UFormField :label="$t('settings.whisperModel')">
               <UInput
-                :model-value="activeModel?.name || 'لم يتم تحديد نموذج'"
+                :model-value="activeModel?.name || $t('settings.noModelSelected')"
                 icon="i-lucide-brain"
                 readonly
                 disabled
               />
             </UFormField>
 
-            <UFormField label="جهاز الميكروفون">
+            <UFormField :label="$t('settings.micDevice')">
               <div class="flex gap-2">
                 <USelect
                   :model-value="selectedAudioDevice"
                   :items="[
-                    { label: 'الافتراضي', value: '' },
-                    ...audioDevices.map(d => ({ label: d.name + (d.is_default ? ' (افتراضي)' : ''), value: d.name }))
+                    { label: $t('settings.micDefault'), value: '' },
+                    ...audioDevices.map(d => ({ label: d.name + (d.is_default ? ` (${$t('settings.micDefaultTag')})` : ''), value: d.name }))
                   ]"
                   value-key="value"
                   class="flex-1"
@@ -473,15 +474,15 @@ async function handleSave() {
                 name="i-lucide-cpu"
                 class="size-5"
               />
-              <span class="font-semibold">الأداء</span>
+              <span class="font-semibold">{{ $t('settings.perfSection') }}</span>
             </div>
           </template>
 
           <div class="space-y-4">
             <div class="flex items-center justify-between">
               <div>
-                <p class="font-medium">استخدام GPU (كرت الشاشة)</p>
-                <p class="text-sm text-muted">تسريع المعالجة باستخدام NVIDIA CUDA - يحتاج كرت شاشة NVIDIA</p>
+                <p class="font-medium">{{ $t('settings.gpuLabel') }}</p>
+                <p class="text-sm text-muted">{{ $t('settings.gpuDesc') }}</p>
               </div>
               <USwitch
                 v-model="form.use_gpu"
@@ -497,7 +498,7 @@ async function handleSave() {
                 name="i-lucide-info"
                 class="size-4 mt-0.5 shrink-0"
               />
-              <span>لم يتم اكتشاف كرت شاشة NVIDIA يدعم CUDA على جهازك. هذا الخيار غير متاح.</span>
+              <span>{{ $t('settings.gpuUnavailable') }}</span>
             </div>
 
             <div
@@ -508,7 +509,7 @@ async function handleSave() {
                 name="i-lucide-check-circle"
                 class="size-4 mt-0.5 shrink-0"
               />
-              <span>تم اكتشاف كرت شاشة NVIDIA يدعم CUDA. سيتم استخدام GPU لتسريع المعالجة.</span>
+              <span>{{ $t('settings.gpuEnabled') }}</span>
             </div>
           </div>
         </UCard>
@@ -520,15 +521,15 @@ async function handleSave() {
                 name="i-lucide-sliders-horizontal"
                 class="size-5"
               />
-              <span class="font-semibold">خيارات عامة</span>
+              <span class="font-semibold">{{ $t('settings.generalSection') }}</span>
             </div>
           </template>
 
           <div class="space-y-4">
             <div class="flex items-center justify-between">
               <div>
-                <p class="font-medium">علامات الترقيم التلقائية</p>
-                <p class="text-sm text-muted">إضافة علامات الترقيم تلقائيًا للنص</p>
+                <p class="font-medium">{{ $t('settings.autoPunctuation') }}</p>
+                <p class="text-sm text-muted">{{ $t('settings.autoPunctuationDesc') }}</p>
               </div>
               <USwitch v-model="form.auto_punctuation" />
             </div>
@@ -537,8 +538,8 @@ async function handleSave() {
 
             <div class="flex items-center justify-between">
               <div>
-                <p class="font-medium">الكتابة التلقائية</p>
-                <p class="text-sm text-muted">كتابة النص مباشرة في البرنامج النشط</p>
+                <p class="font-medium">{{ $t('settings.autoType') }}</p>
+                <p class="text-sm text-muted">{{ $t('settings.autoTypeDesc') }}</p>
               </div>
               <USwitch v-model="form.auto_type" />
             </div>
@@ -547,8 +548,8 @@ async function handleSave() {
 
             <div class="flex items-center justify-between">
               <div>
-                <p class="font-medium">إشعارات صوتية</p>
-                <p class="text-sm text-muted">تشغيل صوت عند بدء وإيقاف الإملاء</p>
+                <p class="font-medium">{{ $t('settings.soundNotifications') }}</p>
+                <p class="text-sm text-muted">{{ $t('settings.soundNotificationsDesc') }}</p>
               </div>
               <USwitch v-model="form.sound_notifications" />
             </div>
@@ -557,8 +558,8 @@ async function handleSave() {
 
             <div class="flex items-center justify-between">
               <div>
-                <p class="font-medium">التشغيل التلقائي</p>
-                <p class="text-sm text-muted">تشغيل التطبيق عند بدء النظام</p>
+                <p class="font-medium">{{ $t('settings.autoStart') }}</p>
+                <p class="text-sm text-muted">{{ $t('settings.autoStartDesc') }}</p>
               </div>
               <USwitch v-model="form.auto_start" />
             </div>
@@ -567,15 +568,15 @@ async function handleSave() {
 
             <div class="flex items-center justify-between">
               <div>
-                <p class="font-medium">إيقاف تلقائي عند الصمت</p>
-                <p class="text-sm text-muted">إيقاف التسجيل تلقائياً عند انتهاء الكلام</p>
+                <p class="font-medium">{{ $t('settings.autoStopSilence') }}</p>
+                <p class="text-sm text-muted">{{ $t('settings.autoStopSilenceDesc') }}</p>
               </div>
               <USwitch v-model="form.auto_stop_silence" />
             </div>
 
             <UFormField
               v-if="form.auto_stop_silence"
-              label="مدة الصمت قبل الإيقاف"
+              :label="$t('settings.silenceDuration')"
             >
               <USelect
                 v-model="form.auto_stop_seconds"
@@ -593,15 +594,15 @@ async function handleSave() {
                 name="i-lucide-sparkles"
                 class="size-5"
               />
-              <span class="font-semibold">تحسين النص بالذكاء الاصطناعي</span>
+              <span class="font-semibold">{{ $t('settings.aiSection') }}</span>
             </div>
           </template>
 
           <div class="space-y-4">
             <div class="flex items-center justify-between">
               <div>
-                <p class="font-medium">تفعيل التحسين بالذكاء الاصطناعي</p>
-                <p class="text-sm text-muted">تصحيح الأخطاء وإضافة علامات الترقيم تلقائياً</p>
+                <p class="font-medium">{{ $t('settings.aiEnable') }}</p>
+                <p class="text-sm text-muted">{{ $t('settings.aiEnableDesc') }}</p>
               </div>
               <USwitch v-model="form.ai_refinement" />
             </div>
@@ -609,7 +610,7 @@ async function handleSave() {
             <template v-if="form.ai_refinement">
               <USeparator />
 
-              <UFormField label="مزود الذكاء الاصطناعي">
+              <UFormField :label="$t('settings.aiProvider')">
                 <USelect
                   v-model="form.ai_provider"
                   :items="providerOptions"
@@ -619,7 +620,7 @@ async function handleSave() {
 
               <UFormField
                 v-if="form.ai_provider === 'claude'"
-                label="مفتاح Claude API"
+                :label="$t('settings.aiKeyLabel', { provider: 'Claude' })"
               >
                 <UInput
                   v-model="form.claude_api_key"
@@ -631,7 +632,7 @@ async function handleSave() {
 
               <UFormField
                 v-else-if="form.ai_provider === 'openai'"
-                label="مفتاح OpenAI API"
+                :label="$t('settings.aiKeyLabel', { provider: 'OpenAI' })"
               >
                 <UInput
                   v-model="form.openai_api_key"
@@ -643,7 +644,7 @@ async function handleSave() {
 
               <UFormField
                 v-else-if="form.ai_provider === 'gemini'"
-                label="مفتاح Gemini API"
+                :label="$t('settings.aiKeyLabel', { provider: 'Gemini' })"
               >
                 <UInput
                   v-model="form.gemini_api_key"
@@ -655,7 +656,7 @@ async function handleSave() {
 
               <UFormField
                 v-else-if="form.ai_provider === 'grok'"
-                label="مفتاح Grok API"
+                :label="$t('settings.aiKeyLabel', { provider: 'Grok' })"
               >
                 <UInput
                   v-model="form.grok_api_key"
@@ -665,7 +666,7 @@ async function handleSave() {
                 />
               </UFormField>
 
-              <UFormField label="عنوان API مخصص (اختياري)">
+              <UFormField :label="$t('settings.aiCustomUrl')">
                 <UInput
                   v-if="form.ai_provider === 'claude'"
                   v-model="form.claude_api_url"
@@ -696,20 +697,20 @@ async function handleSave() {
                   icon="i-lucide-globe"
                   :placeholder="defaultUrlPlaceholder"
                 />
-                <p class="text-xs text-muted mt-1">أدخل الدومين فقط (مثال: https://your-domain.com) — المسار يُضاف تلقائياً</p>
+                <p class="text-xs text-muted mt-1">{{ $t('settings.aiCustomUrlHint') }}</p>
               </UFormField>
 
               <UFormField
                 v-if="form.ai_provider === 'local' && form.local_api_url"
-                label="مفتاح API (اختياري)"
+                :label="$t('settings.aiLocalKey')"
               >
                 <UInput
                   v-model="form.local_api_key"
                   type="password"
                   icon="i-lucide-key"
-                  placeholder="skip أو اتركه فارغاً"
+                  placeholder="skip"
                 />
-                <p class="text-xs text-muted mt-1">إذا كان السيرفر يتطلب مفتاح، أدخله هنا (مثل: skip)</p>
+                <p class="text-xs text-muted mt-1">{{ $t('settings.aiLocalKeyHint') }}</p>
               </UFormField>
 
               <UButton
@@ -718,7 +719,7 @@ async function handleSave() {
                 :loading="isTestingConnection"
                 @click="testConnection"
               >
-                اختبار الاتصال
+                {{ $t('settings.testConnection') }}
               </UButton>
             </template>
           </div>
@@ -735,7 +736,7 @@ async function handleSave() {
             class="shadow-lg"
             @click="handleSave"
           >
-            حفظ الإعدادات
+            {{ $t('settings.saveSettings') }}
           </UButton>
         </div>
       </div>

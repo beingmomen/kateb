@@ -3,6 +3,7 @@ definePageMeta({
   layout: 'dashboard'
 })
 
+const { t } = useI18n()
 const { availableModels, activeModel, isDownloading, downloadingModelId, downloadProgress, downloadedBytes, totalBytes, error, isLoading, getAvailableModels, getActiveModel, downloadModel, setActiveModel, deleteModel, formatBytes } = useModels()
 const toast = useToast()
 
@@ -19,13 +20,13 @@ async function handleDownload(modelId) {
   try {
     await downloadModel(modelId)
     toast.add({
-      title: 'تم تحميل النموذج بنجاح',
+      title: t('models.downloadSuccess'),
       icon: 'i-lucide-check',
       color: 'success'
     })
   } catch (e) {
     toast.add({
-      title: 'فشل تحميل النموذج',
+      title: t('models.downloadFailed'),
       description: e.toString(),
       icon: 'i-lucide-alert-circle',
       color: 'error'
@@ -38,13 +39,13 @@ async function handleActivate(modelId) {
   try {
     await setActiveModel(modelId)
     toast.add({
-      title: 'تم تفعيل النموذج',
+      title: t('models.activateSuccess'),
       icon: 'i-lucide-check',
       color: 'success'
     })
   } catch (e) {
     toast.add({
-      title: 'فشل تفعيل النموذج',
+      title: t('models.activateFailed'),
       description: e.toString(),
       icon: 'i-lucide-alert-circle',
       color: 'error'
@@ -66,13 +67,13 @@ async function handleDelete() {
     showDeleteConfirm.value = false
     deleteTargetId.value = null
     toast.add({
-      title: 'تم حذف النموذج',
+      title: t('models.deleteSuccess'),
       icon: 'i-lucide-check',
       color: 'success'
     })
   } catch (e) {
     toast.add({
-      title: 'فشل حذف النموذج',
+      title: t('models.deleteFailed'),
       description: e.toString(),
       icon: 'i-lucide-alert-circle',
       color: 'error'
@@ -88,11 +89,11 @@ const progressText = computed(() => {
 })
 
 function accuracyStars(level) {
-  return '★'.repeat(level) + '☆'.repeat(5 - level)
+  return '\u2605'.repeat(level) + '\u2606'.repeat(5 - level)
 }
 
 function speedLabel(level) {
-  const labels = ['', 'بطيء جداً', 'بطيء', 'متوسط', 'سريع', 'سريع جداً']
+  const labels = ['', t('welcome.speedVerySlow'), t('welcome.speedSlow'), t('welcome.speedMedium'), t('welcome.speedFast'), t('welcome.speedVeryFast')]
   return labels[level] || ''
 }
 
@@ -104,7 +105,7 @@ function isActive(modelId) {
 <template>
   <UDashboardPanel id="models">
     <template #header>
-      <UDashboardNavbar title="إدارة النماذج">
+      <UDashboardNavbar :title="$t('models.title')">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
@@ -122,7 +123,7 @@ function isActive(modelId) {
             class="size-5 text-primary-500"
           />
           <span class="text-sm">
-            النموذج النشط:
+            {{ $t('models.activeModel') }}
             <strong>{{ activeModel.name }}</strong>
           </span>
         </div>
@@ -141,14 +142,14 @@ function isActive(modelId) {
               v-if="isActive(m.id)"
               class="absolute -top-2 left-1/2 -translate-x-1/2 bg-primary-500 text-white text-xs px-3 py-0.5 rounded-full"
             >
-              نشط
+              {{ $t('common.active') }}
             </div>
 
             <div
               v-else-if="m.recommended"
               class="absolute -top-2 left-1/2 -translate-x-1/2 bg-amber-500 text-white text-xs px-3 py-0.5 rounded-full"
             >
-              موصى به
+              {{ $t('common.recommended') }}
             </div>
 
             <div class="space-y-3 pt-2">
@@ -159,19 +160,19 @@ function isActive(modelId) {
 
               <div class="space-y-2 text-sm">
                 <div class="flex justify-between">
-                  <span class="text-muted">الحجم</span>
+                  <span class="text-muted">{{ $t('common.size') }}</span>
                   <span class="font-medium">{{ m.size_display }}</span>
                 </div>
                 <div class="flex justify-between">
-                  <span class="text-muted">الدقة</span>
+                  <span class="text-muted">{{ $t('common.accuracy') }}</span>
                   <span class="text-amber-500">{{ accuracyStars(m.accuracy) }}</span>
                 </div>
                 <div class="flex justify-between">
-                  <span class="text-muted">السرعة</span>
+                  <span class="text-muted">{{ $t('common.speed') }}</span>
                   <span class="font-medium">{{ speedLabel(m.speed) }}</span>
                 </div>
                 <div class="flex justify-between">
-                  <span class="text-muted">الذاكرة</span>
+                  <span class="text-muted">{{ $t('common.memory') }}</span>
                   <span class="font-medium">{{ m.ram_mb }} MB</span>
                 </div>
               </div>
@@ -222,7 +223,7 @@ function isActive(modelId) {
                     :loading="isActivating"
                     @click="handleActivate(m.id)"
                   >
-                    تفعيل
+                    {{ $t('common.activate') }}
                   </UButton>
                   <UButton
                     v-else
@@ -233,7 +234,7 @@ function isActive(modelId) {
                     icon="i-lucide-check"
                     disabled
                   >
-                    مفعّل
+                    {{ $t('common.activated') }}
                   </UButton>
                   <UButton
                     size="sm"
@@ -254,7 +255,7 @@ function isActive(modelId) {
                   :disabled="isDownloading"
                   @click="handleDownload(m.id)"
                 >
-                  تحميل ({{ m.size_display }})
+                  {{ $t('models.downloadSize', { size: m.size_display }) }}
                 </UButton>
               </template>
             </div>
@@ -262,47 +263,46 @@ function isActive(modelId) {
         </div>
 
         <p class="text-xs text-muted text-center">
-          يتم تحميل النماذج من HuggingFace ويتم حفظها محلياً على جهازك
+          {{ $t('models.modelsFromHf') }}
         </p>
       </div>
     </template>
+    <UModal v-model:open="showDeleteConfirm">
+      <template #content>
+        <UCard>
+          <template #header>
+            <div class="flex items-center gap-2 text-red-600 dark:text-red-400">
+              <UIcon
+                name="i-lucide-alert-triangle"
+                class="size-5"
+              />
+              <span class="font-semibold">{{ $t('models.confirmDelete') }}</span>
+            </div>
+          </template>
+
+          <p>
+            {{ $t('models.confirmDeleteMsg') }}
+          </p>
+
+          <template #footer>
+            <div class="flex justify-end gap-2">
+              <UButton
+                variant="ghost"
+                @click="showDeleteConfirm = false"
+              >
+                {{ $t('common.cancel') }}
+              </UButton>
+              <UButton
+                color="error"
+                :loading="isDeleting"
+                @click="handleDelete"
+              >
+                {{ $t('common.delete') }}
+              </UButton>
+            </div>
+          </template>
+        </UCard>
+      </template>
+    </UModal>
   </UDashboardPanel>
-
-  <UModal v-model:open="showDeleteConfirm">
-    <template #content>
-      <UCard>
-        <template #header>
-          <div class="flex items-center gap-2 text-red-600 dark:text-red-400">
-            <UIcon
-              name="i-lucide-alert-triangle"
-              class="size-5"
-            />
-            <span class="font-semibold">تأكيد الحذف</span>
-          </div>
-        </template>
-
-        <p>
-          هل أنت متأكد من حذف هذا النموذج؟ ستحتاج إلى إعادة تحميله لاستخدامه.
-        </p>
-
-        <template #footer>
-          <div class="flex justify-end gap-2">
-            <UButton
-              variant="ghost"
-              @click="showDeleteConfirm = false"
-            >
-              إلغاء
-            </UButton>
-            <UButton
-              color="error"
-              :loading="isDeleting"
-              @click="handleDelete"
-            >
-              حذف
-            </UButton>
-          </div>
-        </template>
-      </UCard>
-    </template>
-  </UModal>
 </template>

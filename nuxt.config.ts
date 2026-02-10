@@ -2,8 +2,19 @@ export default defineNuxtConfig({
   modules: [
     '@nuxt/eslint',
     '@nuxt/ui',
-    '@nuxt/fonts'
+    '@nuxt/fonts',
+    '@nuxtjs/i18n'
   ],
+
+  i18n: {
+    locales: [
+      { code: 'ar', name: 'العربية', dir: 'rtl', file: 'ar.json' },
+      { code: 'en', name: 'English', dir: 'ltr', file: 'en.json' }
+    ],
+    defaultLocale: 'ar',
+    langDir: 'locales',
+    strategy: 'no_prefix'
+  },
 
   ssr: false,
 

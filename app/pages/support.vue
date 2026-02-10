@@ -3,45 +3,47 @@ definePageMeta({
   layout: 'dashboard'
 })
 
-const donationLinks = [
+const { t } = useI18n()
+
+const donationLinks = computed(() => [
   {
     name: 'Ko-fi',
     icon: 'i-lucide-coffee',
     url: 'https://ko-fi.com/beingmomen',
     color: 'bg-[#FF5E5B]',
-    description: 'ادعمنا بفنجان قهوة'
+    description: t('support.kofiDesc')
   },
   {
     name: 'Buy Me a Coffee',
     icon: 'i-lucide-heart',
     url: 'https://buymeacoffee.com/beingmomen',
     color: 'bg-[#FFDD00]',
-    description: 'تبرع لدعم التطوير'
+    description: t('support.bmcDesc')
   }
-]
+])
 
-const features = [
+const features = computed(() => [
   {
     icon: 'i-lucide-mic',
-    title: 'تحويل صوت عالي الجودة',
-    description: 'استخدام Whisper Large V3 Turbo للحصول على أفضل دقة'
+    title: t('support.feature1Title'),
+    description: t('support.feature1Desc')
   },
   {
     icon: 'i-lucide-zap',
-    title: 'أداء محلي سريع',
-    description: 'يعمل على جهازك بدون الحاجة للإنترنت'
+    title: t('support.feature2Title'),
+    description: t('support.feature2Desc')
   },
   {
     icon: 'i-lucide-sparkles',
-    title: 'تحسين بالذكاء الاصطناعي',
-    description: 'تصحيح الأخطاء وإضافة علامات الترقيم تلقائياً'
+    title: t('support.feature3Title'),
+    description: t('support.feature3Desc')
   },
   {
     icon: 'i-lucide-shield',
-    title: 'خصوصية تامة',
-    description: 'بياناتك تبقى على جهازك فقط'
+    title: t('support.feature4Title'),
+    description: t('support.feature4Desc')
   }
-]
+])
 
 function openLink(url) {
   window.open(url, '_blank')
@@ -51,7 +53,7 @@ function openLink(url) {
 <template>
   <UDashboardPanel id="support">
     <template #header>
-      <UDashboardNavbar title="دعم المشروع">
+      <UDashboardNavbar :title="$t('support.title')">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
@@ -69,9 +71,9 @@ function openLink(url) {
               />
             </div>
           </div>
-          <h2 class="text-xl font-bold">ادعم تطوير المشروع</h2>
+          <h2 class="text-xl font-bold">{{ $t('support.heading') }}</h2>
           <p class="text-muted max-w-md mx-auto">
-            هذا المشروع مجاني ومفتوح المصدر. دعمك يساعدنا على الاستمرار في التطوير وإضافة ميزات جديدة.
+            {{ $t('support.description') }}
           </p>
         </div>
 
@@ -82,7 +84,7 @@ function openLink(url) {
                 name="i-lucide-gift"
                 class="size-5"
               />
-              <span class="font-semibold">طرق الدعم</span>
+              <span class="font-semibold">{{ $t('support.donationMethods') }}</span>
             </div>
           </template>
 
@@ -121,7 +123,7 @@ function openLink(url) {
                 name="i-lucide-star"
                 class="size-5"
               />
-              <span class="font-semibold">مميزات المشروع</span>
+              <span class="font-semibold">{{ $t('support.features') }}</span>
             </div>
           </template>
 
@@ -152,13 +154,13 @@ function openLink(url) {
                 name="i-lucide-github"
                 class="size-5"
               />
-              <span class="font-semibold">المساهمة في المشروع</span>
+              <span class="font-semibold">{{ $t('support.contribute') }}</span>
             </div>
           </template>
 
           <div class="space-y-4">
             <p class="text-muted">
-              المشروع مفتوح المصدر ونرحب بمساهماتكم! يمكنكم المساهمة عبر:
+              {{ $t('support.contributeDesc') }}
             </p>
             <ul class="space-y-2 text-muted">
               <li class="flex items-center gap-2">
@@ -166,28 +168,28 @@ function openLink(url) {
                   name="i-lucide-bug"
                   class="size-4"
                 />
-                الإبلاغ عن الأخطاء
+                {{ $t('support.reportBugs') }}
               </li>
               <li class="flex items-center gap-2">
                 <UIcon
                   name="i-lucide-lightbulb"
                   class="size-4"
                 />
-                اقتراح ميزات جديدة
+                {{ $t('support.suggestFeatures') }}
               </li>
               <li class="flex items-center gap-2">
                 <UIcon
                   name="i-lucide-code"
                   class="size-4"
                 />
-                المساهمة في الكود
+                {{ $t('support.contributeCode') }}
               </li>
               <li class="flex items-center gap-2">
                 <UIcon
                   name="i-lucide-languages"
                   class="size-4"
                 />
-                المساعدة في الترجمة
+                {{ $t('support.helpTranslate') }}
               </li>
             </ul>
           </div>
@@ -199,13 +201,13 @@ function openLink(url) {
               block
               @click="openLink('https://github.com/beingmomen/kateb')"
             >
-              زيارة المشروع على GitHub
+              {{ $t('support.visitGithub') }}
             </UButton>
           </template>
         </UCard>
 
         <div class="text-center text-sm text-muted py-4">
-          <p>شكراً لدعمكم</p>
+          <p>{{ $t('support.thanks') }}</p>
         </div>
       </div>
     </template>

@@ -3,6 +3,7 @@ definePageMeta({
   layout: 'dashboard'
 })
 
+const { t, locale } = useI18n()
 const { history, loading, fetchHistory, deleteItem, clearAll } = useHistory()
 const toast = useToast()
 const searchQuery = ref('')
@@ -20,23 +21,23 @@ watch(searchQuery, (val) => {
 
 async function handleCopy(text) {
   await navigator.clipboard.writeText(text)
-  toast.add({ title: 'تم النسخ', icon: 'i-lucide-check' })
+  toast.add({ title: t('common.copied'), icon: 'i-lucide-check' })
 }
 
 async function handleDelete(id) {
   await deleteItem(id)
-  toast.add({ title: 'تم الحذف', icon: 'i-lucide-trash-2' })
+  toast.add({ title: t('common.deleted'), icon: 'i-lucide-trash-2' })
 }
 
 async function handleClearAll() {
   await clearAll()
   showClearModal.value = false
-  toast.add({ title: 'تم حذف جميع السجلات', icon: 'i-lucide-trash-2' })
+  toast.add({ title: t('history.allCleared'), icon: 'i-lucide-trash-2' })
 }
 
 function formatDate(dateStr) {
   const date = new Date(dateStr)
-  return new Intl.DateTimeFormat('ar', {
+  return new Intl.DateTimeFormat(locale.value, {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -46,14 +47,14 @@ function formatDate(dateStr) {
 }
 
 function formatDuration(seconds) {
-  if (seconds < 60) return `${seconds} ث`
-  return `${Math.floor(seconds / 60)} د`
+  if (seconds < 60) return `${seconds} ${t('common.sec')}`
+  return `${Math.floor(seconds / 60)} ${t('common.min')}`
 }
 
 function formatProcessingTime(ms) {
   if (!ms) return ''
-  if (ms < 1000) return `${ms} مللي ث`
-  return `${(ms / 1000).toFixed(1)} ث`
+  if (ms < 1000) return `${ms} ${t('common.ms')}`
+  return `${(ms / 1000).toFixed(1)} ${t('common.sec')}`
 }
 
 function getProviderLabel(provider) {
@@ -62,7 +63,7 @@ function getProviderLabel(provider) {
     openai: 'OpenAI',
     gemini: 'Gemini',
     grok: 'Grok',
-    local: 'محلي'
+    local: t('common.local')
   }
   return map[provider] || provider
 }
@@ -71,7 +72,7 @@ function getProviderLabel(provider) {
 <template>
   <UDashboardPanel id="history">
     <template #header>
-      <UDashboardNavbar title="السجل">
+      <UDashboardNavbar :title="$t('history.title')">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
@@ -83,7 +84,7 @@ function getProviderLabel(provider) {
             color="error"
             variant="ghost"
             size="sm"
-            label="حذف الكل"
+            :label="$t('common.deleteAll')"
             @click="showClearModal = true"
           />
         </template>
@@ -95,7 +96,7 @@ function getProviderLabel(provider) {
         <UInput
           v-model="searchQuery"
           icon="i-lucide-search"
-          placeholder="بحث في السجل..."
+          :placeholder="$t('history.searchPlaceholder')"
           size="lg"
           @keyup.enter="handleSearch"
         />
@@ -118,7 +119,7 @@ function getProviderLabel(provider) {
             name="i-lucide-inbox"
             class="size-12 text-muted mx-auto mb-4"
           />
-          <p class="text-muted">لا توجد إملاءات سابقة</p>
+          <p class="text-muted">{{ $t('history.noHistory') }}</p>
         </div>
 
         <div
@@ -138,7 +139,7 @@ function getProviderLabel(provider) {
                   class="mt-2"
                 >
                   <UButton
-                    label="النص الأصلي"
+                    :label="$t('history.originalText')"
                     color="neutral"
                     variant="ghost"
                     size="xs"
@@ -158,7 +159,7 @@ function getProviderLabel(provider) {
                     {{ formatDate(item.created_at) }}
                   </span>
                   <UBadge
-                    :label="item.language === 'ar' ? 'عربي' : 'English'"
+                    :label="item.language === 'ar' ? $t('common.arabic') : 'English'"
                     variant="subtle"
                     size="xs"
                   />
@@ -212,17 +213,17 @@ function getProviderLabel(provider) {
               name="i-lucide-alert-triangle"
               class="size-12 text-error mx-auto mb-4"
             />
-            <h3 class="text-lg font-semibold mb-2">حذف جميع السجلات</h3>
-            <p class="text-muted mb-6">هل أنت متأكد من حذف جميع الإملاءات السابقة؟ لا يمكن التراجع عن هذا الإجراء.</p>
+            <h3 class="text-lg font-semibold mb-2">{{ $t('history.clearAll') }}</h3>
+            <p class="text-muted mb-6">{{ $t('history.clearAllConfirm') }}</p>
             <div class="flex justify-center gap-3">
               <UButton
-                label="إلغاء"
+                :label="$t('common.cancel')"
                 color="neutral"
                 variant="outline"
                 @click="showClearModal = false"
               />
               <UButton
-                label="حذف الكل"
+                :label="$t('common.deleteAll')"
                 color="error"
                 @click="handleClearAll"
               />

@@ -3,6 +3,8 @@ definePageMeta({
   layout: "dashboard",
 });
 
+const { t } = useI18n()
+
 const {
   isRecording,
   isProcessing,
@@ -21,10 +23,10 @@ const {
 } = useDictation();
 
 const statusText = computed(() => {
-  if (isRefining.value) return "جارٍ تحسين النص...";
-  if (isProcessing.value) return "جارٍ المعالجة...";
-  if (isRecording.value) return "جارٍ التسجيل...";
-  return "اضغط للبدء";
+  if (isRefining.value) return t("home.refining");
+  if (isProcessing.value) return t("home.processing");
+  if (isRecording.value) return t("home.recording");
+  return t("home.pressToStart");
 });
 
 const statusColor = computed(() => {
@@ -40,15 +42,15 @@ const formattedDuration = computed(() => {
 });
 
 function formatMs(ms) {
-  if (ms < 1000) return `${ms} مللي ث`;
-  return `${(ms / 1000).toFixed(1)} ث`;
+  if (ms < 1000) return `${ms} ${t('common.ms')}`;
+  return `${(ms / 1000).toFixed(1)} ${t('common.sec')}`;
 }
 
 function formatSecs(secs) {
-  if (secs < 60) return `${secs} ث`;
+  if (secs < 60) return `${secs} ${t('common.sec')}`;
   const mins = Math.floor(secs / 60);
   const remaining = secs % 60;
-  return `${mins} د ${remaining} ث`;
+  return `${mins} ${t('common.min')} ${remaining} ${t('common.sec')}`;
 }
 
 const stageIndex = { recording: 0, processing: 1, refining: 2, done: 3, idle: -1 };
@@ -59,11 +61,11 @@ const showRefiningStage = computed(() => {
 
 const timelineStages = computed(() => {
   const stages = [
-    { key: 'recording', label: 'التسجيل', icon: 'i-lucide-mic', duration: formatSecs(recordingDuration.value) },
-    { key: 'processing', label: 'المعالجة', icon: 'i-lucide-cpu', duration: formatMs(processingDuration.value) },
+    { key: 'recording', label: t('home.stageRecording'), icon: 'i-lucide-mic', duration: formatSecs(recordingDuration.value) },
+    { key: 'processing', label: t('home.stageProcessing'), icon: 'i-lucide-cpu', duration: formatMs(processingDuration.value) },
   ];
   if (showRefiningStage.value) {
-    stages.push({ key: 'refining', label: 'التحسين', icon: 'i-lucide-sparkles', duration: formatMs(refiningDuration.value) });
+    stages.push({ key: 'refining', label: t('home.stageRefining'), icon: 'i-lucide-sparkles', duration: formatMs(refiningDuration.value) });
   }
   return stages;
 });
@@ -81,14 +83,14 @@ const toast = useToast();
 async function handleCopy() {
   if (!lastResult.value) return;
   await navigator.clipboard.writeText(lastResult.value);
-  toast.add({ title: "تم النسخ", icon: "i-lucide-check" });
+  toast.add({ title: t("common.copied"), icon: "i-lucide-check" });
 }
 </script>
 
 <template>
   <UDashboardPanel id="main">
     <template #header>
-      <UDashboardNavbar title="الرئيسية">
+      <UDashboardNavbar :title="$t('home.title')">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
@@ -98,8 +100,8 @@ async function handleCopy() {
     <template #body>
       <div class="flex flex-col items-center justify-center gap-8 py-12">
         <div class="text-center">
-          <h1 class="text-3xl font-bold mb-2">إملاء صوتي عربي</h1>
-          <p class="text-muted">تحويل الصوت إلى نص باستخدام Whisper</p>
+          <h1 class="text-3xl font-bold mb-2">{{ $t('home.heading') }}</h1>
+          <p class="text-muted">{{ $t('home.subtitle') }}</p>
         </div>
 
         <div class="flex flex-col items-center gap-4">
@@ -165,7 +167,7 @@ async function handleCopy() {
               name="i-lucide-timer"
               class="size-4"
             />
-            <span>إيقاف تلقائي خلال {{ silenceCountdown.remaining }} ث</span>
+            <span>{{ $t('home.autoStopIn', { seconds: silenceCountdown.remaining }) }}</span>
           </p>
         </div>
 
@@ -249,7 +251,7 @@ async function handleCopy() {
                   name="i-lucide-sparkles"
                   class="size-4 animate-pulse text-yellow-500"
                 />
-                <span class="font-semibold">جارٍ تحسين النص...</span>
+                <span class="font-semibold">{{ $t('home.refining') }}</span>
               </div>
             </template>
 
@@ -263,7 +265,7 @@ async function handleCopy() {
           <UCard>
             <template #header>
               <div class="flex items-center justify-between">
-                <span class="font-semibold">آخر نتيجة</span>
+                <span class="font-semibold">{{ $t('home.lastResult') }}</span>
                 <UButton
                   icon="i-lucide-copy"
                   color="neutral"
@@ -282,7 +284,7 @@ async function handleCopy() {
 
         <div class="text-center text-sm text-muted">
           <UKbd>Z</UKbd> + <UKbd>Z</UKbd>
-          <span class="mr-2">اضغط مرتين بسرعة لبدء/إيقاف الإملاء</span>
+          <span class="mr-2">{{ $t('home.shortcutHint') }}</span>
         </div>
       </div>
     </template>

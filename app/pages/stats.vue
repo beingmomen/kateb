@@ -3,6 +3,7 @@ definePageMeta({
   layout: 'dashboard'
 })
 
+const { t, locale } = useI18n()
 const { dailyStats, summary, loading, fetchDailyStats, fetchSummary, formatDuration } = useStats()
 
 onMounted(() => {
@@ -12,25 +13,25 @@ onMounted(() => {
 
 const summaryCards = computed(() => [
   {
-    title: 'إجمالي الإملاءات',
+    title: t('stats.totalDictations'),
     value: summary.value?.total_dictations ?? 0,
     icon: 'i-lucide-mic',
     color: 'primary'
   },
   {
-    title: 'إجمالي الكلمات',
+    title: t('stats.totalWords'),
     value: summary.value?.total_words ?? 0,
     icon: 'i-lucide-type',
     color: 'info'
   },
   {
-    title: 'إجمالي الوقت',
+    title: t('stats.totalTime'),
     value: formatDuration(summary.value?.total_duration ?? 0),
     icon: 'i-lucide-clock',
     color: 'warning'
   },
   {
-    title: 'أيام الاستخدام',
+    title: t('stats.activeDays'),
     value: summary.value?.days_active ?? 0,
     icon: 'i-lucide-calendar',
     color: 'success'
@@ -40,7 +41,7 @@ const summaryCards = computed(() => [
 const chartLabels = computed(() =>
   dailyStats.value.map(s => {
     const date = new Date(s.date)
-    return new Intl.DateTimeFormat('ar', { month: 'short', day: 'numeric' }).format(date)
+    return new Intl.DateTimeFormat(locale.value, { month: 'short', day: 'numeric' }).format(date)
   })
 )
 
@@ -48,11 +49,11 @@ const dictationsData = computed(() => dailyStats.value.map(s => s.total_dictatio
 const wordsData = computed(() => dailyStats.value.map(s => s.total_words))
 
 const activePeriod = ref(30)
-const periodOptions = [
-  { label: '٧ أيام', value: 7 },
-  { label: '٣٠ يوم', value: 30 },
-  { label: '٩٠ يوم', value: 90 }
-]
+const periodOptions = computed(() => [
+  { label: t('stats.period7'), value: 7 },
+  { label: t('stats.period30'), value: 30 },
+  { label: t('stats.period90'), value: 90 }
+])
 
 watch(activePeriod, (val) => {
   fetchDailyStats(val)
@@ -62,7 +63,7 @@ watch(activePeriod, (val) => {
 <template>
   <UDashboardPanel id="stats">
     <template #header>
-      <UDashboardNavbar title="الإحصائيات">
+      <UDashboardNavbar :title="$t('stats.title')">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
@@ -115,13 +116,13 @@ watch(activePeriod, (val) => {
             name="i-lucide-bar-chart-3"
             class="size-12 text-muted mx-auto mb-4"
           />
-          <p class="text-muted">لا توجد إحصائيات بعد. ابدأ بالإملاء لتظهر البيانات هنا.</p>
+          <p class="text-muted">{{ $t('stats.noStats') }}</p>
         </div>
 
         <template v-else>
           <UCard>
             <template #header>
-              <span class="font-semibold">الإملاءات اليومية</span>
+              <span class="font-semibold">{{ $t('stats.dailyDictations') }}</span>
             </template>
             <div class="h-64 flex items-end gap-1">
               <div
@@ -129,7 +130,7 @@ watch(activePeriod, (val) => {
                 :key="index"
                 class="flex-1 bg-primary/80 rounded-t transition-all hover:bg-primary"
                 :style="{ height: `${Math.max(4, (count / Math.max(...dictationsData, 1)) * 100)}%` }"
-                :title="`${chartLabels[index]}: ${count} إملاء`"
+                :title="`${chartLabels[index]}: ${count} ${$t('stats.dictation')}`"
               />
             </div>
             <div class="flex justify-between text-xs text-muted mt-2">
@@ -140,7 +141,7 @@ watch(activePeriod, (val) => {
 
           <UCard>
             <template #header>
-              <span class="font-semibold">الكلمات اليومية</span>
+              <span class="font-semibold">{{ $t('stats.dailyWords') }}</span>
             </template>
             <div class="h-64 flex items-end gap-1">
               <div
@@ -148,7 +149,7 @@ watch(activePeriod, (val) => {
                 :key="index"
                 class="flex-1 bg-info/80 rounded-t transition-all hover:bg-info"
                 :style="{ height: `${Math.max(4, (count / Math.max(...wordsData, 1)) * 100)}%` }"
-                :title="`${chartLabels[index]}: ${count} كلمة`"
+                :title="`${chartLabels[index]}: ${count} ${$t('stats.word')}`"
               />
             </div>
             <div class="flex justify-between text-xs text-muted mt-2">

@@ -23,10 +23,10 @@ const handleError = () => clearError({ redirect: '/' })
           {{ error?.statusCode || 500 }}
         </h1>
         <h2 class="text-xl font-semibold">
-          حدث خطأ غير متوقع
+          {{ $t('error.unexpected') }}
         </h2>
         <p class="text-muted">
-          {{ error?.message || 'عذراً، حدث خطأ أثناء تحميل الصفحة.' }}
+          {{ error?.message || $t('error.defaultMessage') }}
         </p>
       </div>
 
@@ -36,7 +36,7 @@ const handleError = () => clearError({ redirect: '/' })
           size="lg"
           @click="handleError"
         >
-          العودة للرئيسية
+          {{ $t('error.goHome') }}
         </UButton>
         <UButton
           icon="i-lucide-refresh-cw"
@@ -44,7 +44,7 @@ const handleError = () => clearError({ redirect: '/' })
           size="lg"
           @click="clearError()"
         >
-          إعادة المحاولة
+          {{ $t('error.retry') }}
         </UButton>
       </div>
     </div>

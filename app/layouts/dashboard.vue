@@ -1,39 +1,44 @@
 <script setup>
+const { t, locale, setLocale } = useI18n()
 const { updateAvailable, updateVersion, isDownloading, downloadProgress, checkForUpdates, downloadAndInstall, dismiss } = useUpdater()
 
-const items = [[
+function toggleLocale() {
+  setLocale(locale.value === 'ar' ? 'en' : 'ar')
+}
+
+const items = computed(() => [[
   {
-    label: 'الرئيسية',
+    label: t('nav.home'),
     icon: 'i-lucide-mic',
     to: '/'
   },
   {
-    label: 'السجل',
+    label: t('nav.history'),
     icon: 'i-lucide-history',
     to: '/history'
   },
   {
-    label: 'الإحصائيات',
+    label: t('nav.stats'),
     icon: 'i-lucide-bar-chart-3',
     to: '/stats'
   }
 ], [
   {
-    label: 'النموذج',
+    label: t('nav.models'),
     icon: 'i-lucide-brain',
     to: '/models'
   },
   {
-    label: 'الإعدادات',
+    label: t('nav.settings'),
     icon: 'i-lucide-settings',
     to: '/settings'
   },
   {
-    label: 'دعم المشروع',
+    label: t('nav.support'),
     icon: 'i-lucide-heart',
     to: '/support'
   }
-]]
+]])
 
 onMounted(() => {
   checkForUpdates()
@@ -56,7 +61,7 @@ onMounted(() => {
           <span
             v-if="!collapsed"
             class="font-bold text-lg"
-          >إملاء صوتي</span>
+          >{{ $t('nav.appName') }}</span>
         </div>
       </template>
 
@@ -73,6 +78,19 @@ onMounted(() => {
           orientation="vertical"
           class="mt-auto"
         />
+
+        <div class="px-3 pb-3">
+          <UButton
+            icon="i-lucide-languages"
+            variant="ghost"
+            :block="!collapsed"
+            :square="collapsed"
+            size="sm"
+            @click="toggleLocale"
+          >
+            <span v-if="!collapsed">{{ locale === 'ar' ? 'English' : 'العربية' }}</span>
+          </UButton>
+        </div>
       </template>
     </UDashboardSidebar>
 
@@ -82,9 +100,9 @@ onMounted(() => {
         icon="i-lucide-download"
         color="info"
         variant="subtle"
-        :title="`تحديث جديد متاح: v${updateVersion}`"
-        :description="isDownloading ? `جاري التحميل... ${downloadProgress}%` : 'اضغط لتحميل وتثبيت التحديث'"
-        :actions="isDownloading ? [] : [{ label: 'تحديث الآن', click: downloadAndInstall }]"
+        :title="$t('updater.newVersion', { version: updateVersion })"
+        :description="isDownloading ? $t('updater.downloading', { progress: downloadProgress }) : $t('updater.clickToInstall')"
+        :actions="isDownloading ? [] : [{ label: $t('updater.updateNow'), click: downloadAndInstall }]"
         orientation="horizontal"
         :close="!isDownloading"
         @update:open="dismiss"
