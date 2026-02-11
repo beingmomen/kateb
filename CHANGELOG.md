@@ -4,7 +4,7 @@ All notable changes to Kateb will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [1.0.2] - 2026-02-10
+## [1.0.2] - 2026-02-11
 
 ### Fixed
 - Models page showing blank — added loading spinner and error handling
@@ -12,6 +12,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Hardcoded 'English' strings now use proper i18n translations
 - Statistics time labels showing Arabic when app is in English mode
 - Modal placement in models page moved inside proper slot
+- Settings page SelectItem error — mic device select had empty string value
+- Enhanced browser mock data for development/testing
 
 ## [1.0.1] - 2026-02-10
 
