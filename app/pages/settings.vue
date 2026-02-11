@@ -14,7 +14,7 @@ const isSaving = ref(false)
 const hasChanges = ref(false)
 const gpuAvailable = ref(false)
 const audioDevices = ref([])
-const selectedAudioDevice = ref('')
+const selectedAudioDevice = ref('default')
 
 const form = reactive({
   shortcut: 'Z+Z',
@@ -89,14 +89,14 @@ async function loadAudioDevices() {
     const devices = await tauriInvoke('get_audio_devices')
     audioDevices.value = devices || []
     const savedDevice = getSettingValue('audio_device', '')
-    selectedAudioDevice.value = savedDevice || ''
+    selectedAudioDevice.value = savedDevice || 'default'
   } catch { /* ignore */ }
 }
 
 async function handleDeviceChange(deviceName) {
   selectedAudioDevice.value = deviceName
   try {
-    await tauriInvoke('set_audio_device', { deviceName: deviceName || null })
+    await tauriInvoke('set_audio_device', { deviceName: deviceName === 'default' ? null : deviceName })
   } catch { /* ignore */ }
 }
 
@@ -522,7 +522,7 @@ async function handleSave() {
                 <USelect
                   :model-value="selectedAudioDevice"
                   :items="[
-                    { label: $t('settings.micDefault'), value: '' },
+                    { label: $t('settings.micDefault'), value: 'default' },
                     ...audioDevices.map(d => ({ label: d.name + (d.is_default ? ` (${$t('settings.micDefaultTag')})` : ''), value: d.name }))
                   ]"
                   value-key="value"
