@@ -4,6 +4,11 @@ All notable changes to Kateb will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.7] - 2026-02-12
+
+### Fixed
+- Linux: app crashing with `Illegal instruction` on CPUs without AVX-512 — limited CI build to x86-64-v3 (AVX2 max)
+
 ## [1.0.6] - 2026-02-12
 
 ### Fixed
