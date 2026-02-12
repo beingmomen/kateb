@@ -23,7 +23,12 @@ impl GeminiRefiner {
             None => DEFAULT_GEMINI_BASE_URL.to_string(),
         };
         Self {
-            client: Client::new(),
+            client: Client::builder()
+                .use_rustls_tls()
+                .connect_timeout(std::time::Duration::from_secs(10))
+                .timeout(std::time::Duration::from_secs(60))
+                .build()
+                .unwrap_or_else(|_| Client::new()),
             api_key,
             base_url: url,
         }

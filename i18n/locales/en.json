@@ -58,7 +58,7 @@
     "pressToStart": "Press to start",
     "autoStopIn": "Auto-stop in {seconds}s",
     "lastResult": "Last result",
-    "shortcutHint": "Double-tap to start/stop dictation",
+    "shortcutHint": "to start/stop dictation",
     "stageRecording": "Recording",
     "stageProcessing": "Processing",
     "stageRefining": "Refining"

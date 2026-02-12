@@ -4,6 +4,19 @@ All notable changes to Kateb will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.3] - 2026-02-12
+
+### Fixed
+- Sidebar toggle icon now visible on all screen sizes (was hidden below lg breakpoint)
+- Dashboard shortcut display is now dynamic — shows actual configured shortcut instead of hardcoded Z+Z
+- AI refinement timeout: processing now auto-cancels after 30s and returns raw text
+- Cross-platform TLS: switched to rustls-tls for reliable HTTPS on Windows builds
+- All AI provider HTTP clients now have connect (10s) and request (60s) timeouts
+
+### Added
+- Global toast notifications for dictation status when triggered via keyboard shortcut from any page
+- Visual feedback for recording, processing, and refinement stages outside the home page
+
 ## [1.0.2] - 2026-02-11
 
 ### Fixed

@@ -3,6 +3,9 @@ export default defineAppConfig({
     colors: {
       primary: 'emerald',
       neutral: 'slate'
+    },
+    dashboardSidebarCollapse: {
+      base: 'flex'
     }
   }
 })

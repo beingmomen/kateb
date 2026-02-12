@@ -58,7 +58,7 @@
     "pressToStart": "اضغط للبدء",
     "autoStopIn": "إيقاف تلقائي خلال {seconds} ث",
     "lastResult": "آخر نتيجة",
-    "shortcutHint": "اضغط مرتين بسرعة لبدء/إيقاف الإملاء",
+    "shortcutHint": "لبدء/إيقاف الإملاء",
     "stageRecording": "التسجيل",
     "stageProcessing": "المعالجة",
     "stageRefining": "التحسين"

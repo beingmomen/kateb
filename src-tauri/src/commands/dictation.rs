@@ -596,7 +596,26 @@ pub async fn stop_dictation(
     };
 
     let raw_text = text.clone();
-    let refinement = refine_with_ai(&text, &db, &app).await;
+    let refinement = match tokio::time::timeout(
+        std::time::Duration::from_secs(30),
+        refine_with_ai(&text, &db, &app),
+    )
+    .await
+    {
+        Ok(result) => result,
+        Err(_) => {
+            tracing::warn!("[ai] AI refinement timed out after 30s, using raw text");
+            let _ = app.emit(
+                "ai-refine-status",
+                serde_json::json!({ "status": "error" }),
+            );
+            RefinementResult {
+                text: text.clone(),
+                ai_provider: String::new(),
+                processing_time_ms: 30000,
+            }
+        }
+    };
     let text = refinement.text;
     let ai_provider = refinement.ai_provider;
     let processing_time_ms = refinement.processing_time_ms;

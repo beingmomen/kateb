@@ -78,6 +78,16 @@ function getStageState(stageKey) {
   return 'pending'
 }
 
+const { fetchSettings, getSettingValue } = useSettings()
+const shortcutKeys = ref(['Z', 'Z'])
+
+onMounted(async () => {
+  await fetchSettings()
+  const rawShortcut = getSettingValue('shortcut', 'Z+Z')
+  const cleanShortcut = String(rawShortcut).replace(/\s/g, '').replace(/^"(.*)"$/, '$1')
+  shortcutKeys.value = cleanShortcut.split('+')
+})
+
 const toast = useToast()
 
 async function handleCopy() {
@@ -299,8 +309,15 @@ async function handleCopy() {
           </UCard>
         </div>
 
-        <div class="text-center text-sm text-muted">
-          <UKbd>Z</UKbd> + <UKbd>Z</UKbd>
+        <div class="text-center text-sm text-muted flex items-center justify-center gap-1">
+          <span
+            v-for="(key, i) in shortcutKeys"
+            :key="i"
+            class="inline-flex items-center gap-1"
+          >
+            <UKbd>{{ key }}</UKbd>
+            <span v-if="i < shortcutKeys.length - 1">+</span>
+          </span>
           <span class="mr-2">{{ $t('home.shortcutHint') }}</span>
         </div>
       </div>
