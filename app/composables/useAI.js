@@ -33,11 +33,16 @@ export function useAI() {
   async function testConnection() {
     isTestingConnection.value = true
     connectionStatus.value = null
+    const minDelay = new Promise(resolve => setTimeout(resolve, 500))
     try {
-      const result = await tauriInvoke('test_ai_connection')
+      const [result] = await Promise.all([
+        tauriInvoke('test_ai_connection'),
+        minDelay
+      ])
       connectionStatus.value = result
       return result
     } catch (e) {
+      await minDelay
       error.value = e
       connectionStatus.value = {
         success: false,
@@ -52,15 +57,20 @@ export function useAI() {
   async function testSpecificProvider(provider, apiKey, baseUrl) {
     isTestingConnection.value = true
     connectionStatus.value = null
+    const minDelay = new Promise(resolve => setTimeout(resolve, 500))
     try {
-      const result = await tauriInvoke('test_specific_provider', {
-        provider,
-        apiKey: apiKey || '',
-        baseUrl: baseUrl || null
-      })
+      const [result] = await Promise.all([
+        tauriInvoke('test_specific_provider', {
+          provider,
+          apiKey: apiKey || '',
+          baseUrl: baseUrl || null
+        }),
+        minDelay
+      ])
       connectionStatus.value = result
       return result
     } catch (e) {
+      await minDelay
       error.value = e
       connectionStatus.value = {
         success: false,

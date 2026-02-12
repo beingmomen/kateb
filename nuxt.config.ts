@@ -48,7 +48,46 @@ export default defineNuxtConfig({
 
   icon: {
     clientBundle: {
-      scan: true
+      scan: true,
+      include: [
+        'i-lucide-mic',
+        'i-lucide-history',
+        'i-lucide-bar-chart-3',
+        'i-lucide-brain',
+        'i-lucide-settings',
+        'i-lucide-heart',
+        'i-lucide-languages',
+        'i-lucide-save',
+        'i-lucide-keyboard',
+        'i-lucide-globe',
+        'i-lucide-key',
+        'i-lucide-plug',
+        'i-lucide-sparkles',
+        'i-lucide-cpu',
+        'i-lucide-sliders-horizontal',
+        'i-lucide-info',
+        'i-lucide-check-circle',
+        'i-lucide-check',
+        'i-lucide-alert-circle',
+        'i-lucide-alert-triangle',
+        'i-lucide-download',
+        'i-lucide-upload',
+        'i-lucide-hard-drive',
+        'i-lucide-command',
+        'i-lucide-circle-dot',
+        'i-lucide-circle-stop',
+        'i-lucide-refresh-cw',
+        'i-lucide-play',
+        'i-lucide-square',
+        'i-lucide-timer',
+        'i-lucide-copy',
+        'i-lucide-trash-2',
+        'i-lucide-search',
+        'i-lucide-calendar',
+        'i-lucide-clock',
+        'i-lucide-chevron-down',
+        'i-lucide-x'
+      ]
     }
   }
 })

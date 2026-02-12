@@ -1,6 +1,6 @@
 {
   "productName": "Kateb",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "identifier": "com.beingmomen.kateb",
   "build": {
     "beforeBuildCommand": "pnpm generate",
@@ -10,7 +10,7 @@
   },
   "app": {
     "security": {
-      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://api.anthropic.com https://api.openai.com https://generativelanguage.googleapis.com https://api.x.ai http://localhost:* https://huggingface.co https://*.huggingface.co https://github.com https://*.github.com; img-src 'self' data: https:; font-src 'self' data:"
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://api.anthropic.com https://api.openai.com https://generativelanguage.googleapis.com https://api.x.ai http://localhost:* https://huggingface.co https://*.huggingface.co https://github.com https://*.github.com https://api.iconify.design; img-src 'self' data: https:; font-src 'self' data:"
     },
     "windows": [
       {

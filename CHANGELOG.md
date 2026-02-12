@@ -4,6 +4,19 @@ All notable changes to Kateb will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.6] - 2026-02-12
+
+### Fixed
+- Auto-stop silence detection now works even when no speech is detected (removed `has_text` guard)
+- Recording silence no longer causes 38-second processing delay — speech ratio check skips transcription when < 10% speech detected
+- Sidebar navigation icons now visible — added explicit icon bundle include list for all 37 Lucide icons
+- Connection test button loading spinner now visible for at least 500ms
+
+### Added
+- `speech_ratio()` method to VAD for measuring speech-to-silence ratio
+- Iconify CDN (`api.iconify.design`) added to CSP as icon fallback
+- 2-second minimum recording duration before auto-stop can activate
+
 ## [1.0.5] - 2026-02-12
 
 ### Fixed

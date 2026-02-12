@@ -1,6 +1,6 @@
 {
   "name": "kateb",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "private": false,
   "type": "module",
   "description": "Kateb - Smart Arabic & English voice dictation desktop app powered by Whisper AI. تطبيق إملاء صوتي ذكي يحول الكلام إلى نص.",

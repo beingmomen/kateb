@@ -106,6 +106,8 @@ fn streaming_transcription_loop(streaming_active: Arc<AtomicBool>, app: tauri::A
         vad.reset();
     }
 
+    let recording_start = std::time::Instant::now();
+
     let auto_stop_enabled = {
         let db: tauri::State<'_, Database> = app.state();
         let conn = db.0.lock().unwrap();
@@ -154,23 +156,17 @@ fn streaming_transcription_loop(streaming_active: Arc<AtomicBool>, app: tauri::A
                 let mut vad = state.vad.lock().unwrap();
                 vad.feed(&recent_audio);
 
-                if auto_stop_enabled.0 {
+                if auto_stop_enabled.0 && recording_start.elapsed().as_secs_f32() > 2.0 {
                     let silence_dur = vad.silence_duration_secs();
-                    let has_text = {
-                        let acc = state.accumulated_text.lock().unwrap();
-                        !acc.is_empty()
-                    };
-                    if has_text {
-                        let remaining = auto_stop_enabled.1 - silence_dur;
-                        let _ = app.emit("silence-countdown", serde_json::json!({
-                            "remaining": remaining,
-                            "total": auto_stop_enabled.1
-                        }));
-                        if silence_dur >= auto_stop_enabled.1 {
-                            tracing::info!("[streaming] Auto-stop: {:.1}s silence detected", silence_dur);
-                            let _ = app.emit("dictation-auto-stop", serde_json::json!({}));
-                            break;
-                        }
+                    let remaining = auto_stop_enabled.1 - silence_dur;
+                    let _ = app.emit("silence-countdown", serde_json::json!({
+                        "remaining": remaining,
+                        "total": auto_stop_enabled.1
+                    }));
+                    if silence_dur >= auto_stop_enabled.1 {
+                        tracing::info!("[streaming] Auto-stop: {:.1}s silence detected", silence_dur);
+                        let _ = app.emit("dictation-auto-stop", serde_json::json!({}));
+                        break;
                     }
                 }
             }
@@ -200,23 +196,17 @@ fn streaming_transcription_loop(streaming_active: Arc<AtomicBool>, app: tauri::A
                 tracing::debug!("[streaming] VAD: no speech detected, skipping chunk");
                 last_processed_pos = current_len;
 
-                if auto_stop_enabled.0 {
+                if auto_stop_enabled.0 && recording_start.elapsed().as_secs_f32() > 2.0 {
                     let silence_dur = vad.silence_duration_secs();
-                    let has_text = {
-                        let acc = state.accumulated_text.lock().unwrap();
-                        !acc.is_empty()
-                    };
-                    if has_text {
-                        let remaining = auto_stop_enabled.1 - silence_dur;
-                        let _ = app.emit("silence-countdown", serde_json::json!({
-                            "remaining": remaining,
-                            "total": auto_stop_enabled.1
-                        }));
-                        if silence_dur >= auto_stop_enabled.1 {
-                            tracing::info!("[streaming] Auto-stop: {:.1}s silence detected", silence_dur);
-                            let _ = app.emit("dictation-auto-stop", serde_json::json!({}));
-                            break;
-                        }
+                    let remaining = auto_stop_enabled.1 - silence_dur;
+                    let _ = app.emit("silence-countdown", serde_json::json!({
+                        "remaining": remaining,
+                        "total": auto_stop_enabled.1
+                    }));
+                    if silence_dur >= auto_stop_enabled.1 {
+                        tracing::info!("[streaming] Auto-stop: {:.1}s silence detected", silence_dur);
+                        let _ = app.emit("dictation-auto-stop", serde_json::json!({}));
+                        break;
                     }
                 }
 
@@ -595,6 +585,11 @@ pub async fn stop_dictation(
         return Ok(String::new());
     }
 
+    let speech_ratio = {
+        let vad = state.vad.lock().map_err(|e| e.to_string())?;
+        vad.speech_ratio()
+    };
+
     let accumulated = {
         let acc = state.accumulated_text.lock().map_err(|e| e.to_string())?;
         acc.join(" ")
@@ -603,8 +598,11 @@ pub async fn stop_dictation(
     let text = if !accumulated.trim().is_empty() {
         tracing::debug!("[dictation] Using accumulated streaming text ({} chars), skipping re-transcription", accumulated.len());
         accumulated
+    } else if speech_ratio < 0.1 {
+        tracing::info!("[dictation] Speech ratio {:.1}% too low, skipping transcription", speech_ratio * 100.0);
+        String::new()
     } else {
-        tracing::debug!("[dictation] No accumulated text, falling back to full re-transcription");
+        tracing::debug!("[dictation] No accumulated text but {:.1}% speech, falling back to full transcription", speech_ratio * 100.0);
         match transcribe_audio(&state, &audio_data) {
             Ok(t) => t,
             Err(e) => {
