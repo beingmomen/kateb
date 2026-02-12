@@ -7,6 +7,21 @@ const { t, setLocale } = useI18n()
 const { fetchSettings, updateSetting, getSettingValue } = useSettings()
 const { providers, isTestingConnection, getProviders, testSpecificProvider, detectGpu } = useAI()
 const { getActiveModel, reloadModel } = useModels()
+const {
+  updateAvailable: settingsUpdateAvailable,
+  updateVersion: settingsUpdateVersion,
+  isChecking: settingsIsChecking,
+  isDownloading: settingsIsDownloading,
+  downloadProgress: settingsDownloadProgress,
+  downloadedBytes: settingsDownloadedBytes,
+  totalBytes: settingsTotalBytes,
+  error: settingsUpdateError,
+  appVersion: settingsAppVersion,
+  loadAppVersion: settingsLoadAppVersion,
+  checkForUpdatesManual: settingsCheckForUpdates,
+  downloadAndInstall: settingsDownloadAndInstall,
+  formatBytes: settingsFormatBytes
+} = useUpdater()
 const toast = useToast()
 
 const activeModel = ref(null)
@@ -104,6 +119,7 @@ onMounted(async () => {
   await fetchSettings()
   await getProviders()
   loadFormFromSettings()
+  settingsLoadAppVersion()
   try {
     activeModel.value = await getActiveModel()
   } catch { /* ignore */ }
@@ -881,6 +897,133 @@ async function handleSave() {
               >
                 {{ $t('settings.importSettings') }}
               </UButton>
+            </div>
+          </div>
+        </UCard>
+
+        <UCard>
+          <template #header>
+            <div class="flex items-center gap-2">
+              <UIcon
+                name="i-lucide-download"
+                class="size-5"
+              />
+              <span class="font-semibold">{{ $t('updater.updateSection') }}</span>
+            </div>
+          </template>
+
+          <div class="space-y-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="font-medium">
+                  {{ $t('updater.currentVersion') }}
+                </p>
+                <p class="text-sm text-muted">
+                  v{{ settingsAppVersion || '...' }}
+                </p>
+              </div>
+              <UButton
+                variant="soft"
+                icon="i-lucide-refresh-cw"
+                :loading="settingsIsChecking"
+                @click="settingsCheckForUpdates"
+              >
+                {{ $t('updater.checkNow') }}
+              </UButton>
+            </div>
+
+            <USeparator v-if="settingsUpdateAvailable || settingsUpdateError" />
+
+            <div v-if="settingsUpdateAvailable && !settingsIsDownloading && !settingsUpdateError">
+              <div class="bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-200 p-3 rounded-lg text-sm flex items-start gap-2">
+                <UIcon
+                  name="i-lucide-download"
+                  class="size-4 mt-0.5 shrink-0"
+                />
+                <div class="flex-1">
+                  <p class="font-medium">
+                    {{ $t('updater.newVersion', { version: settingsUpdateVersion }) }}
+                  </p>
+                  <p class="mt-1">
+                    {{ $t('updater.clickToInstall') }}
+                  </p>
+                </div>
+              </div>
+              <UButton
+                class="mt-3"
+                icon="i-lucide-download"
+                @click="settingsDownloadAndInstall"
+              >
+                {{ $t('updater.updateNow') }}
+              </UButton>
+            </div>
+
+            <div v-else-if="settingsIsDownloading">
+              <div class="space-y-2">
+                <div class="flex justify-between text-sm">
+                  <span>{{ $t('updater.downloading', { progress: settingsDownloadProgress }) }}</span>
+                  <span
+                    v-if="settingsTotalBytes > 0"
+                    class="text-muted"
+                  >
+                    {{ settingsFormatBytes(settingsDownloadedBytes) }} / {{ settingsFormatBytes(settingsTotalBytes) }}
+                  </span>
+                </div>
+                <UProgress
+                  :model-value="settingsDownloadProgress"
+                  :max="100"
+                  size="sm"
+                  :color="settingsDownloadProgress >= 100 ? 'success' : 'primary'"
+                />
+                <p
+                  v-if="settingsDownloadProgress >= 100"
+                  class="text-sm text-muted"
+                >
+                  {{ $t('updater.installing') }}
+                </p>
+              </div>
+            </div>
+
+            <div v-else-if="settingsUpdateError">
+              <div class="bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200 p-3 rounded-lg text-sm flex items-start gap-2">
+                <UIcon
+                  name="i-lucide-alert-circle"
+                  class="size-4 mt-0.5 shrink-0"
+                />
+                <div class="flex-1">
+                  <p class="font-medium">
+                    {{ $t('updater.checkFailed') }}
+                  </p>
+                  <p class="mt-1 text-xs break-all">
+                    {{ settingsUpdateError }}
+                  </p>
+                </div>
+              </div>
+              <UButton
+                class="mt-3"
+                variant="soft"
+                icon="i-lucide-refresh-cw"
+                @click="settingsCheckForUpdates"
+              >
+                {{ $t('updater.retry') }}
+              </UButton>
+            </div>
+
+            <div v-else-if="!settingsIsChecking && !settingsUpdateAvailable && !settingsUpdateError">
+              <div class="bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-200 p-3 rounded-lg text-sm flex items-start gap-2">
+                <UIcon
+                  name="i-lucide-shield-check"
+                  class="size-4 mt-0.5 shrink-0"
+                />
+                <div>
+                  <p class="font-medium">
+                    {{ $t('updater.upToDate') }}
+                  </p>
+                  <p class="mt-0.5">
+                    {{ $t('updater.upToDateDesc') }}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </UCard>

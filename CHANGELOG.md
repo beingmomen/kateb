@@ -4,6 +4,16 @@ All notable changes to Kateb will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.9] - 2026-02-12
+
+### Added
+- Updates section in Settings page with current version display, manual update check, and download progress bar
+- App version number displayed in sidebar footer
+- Visual progress bar (`UProgress`) during update download in dashboard banner
+- Download size info (e.g., "15.2 MB / 45.0 MB") shown during update download
+- Error state with retry button when update check or download fails
+- New i18n translations for update UI (Arabic + English)
+
 ## [1.0.8] - 2026-02-12
 
 ### Fixed

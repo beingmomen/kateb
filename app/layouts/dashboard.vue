@@ -1,6 +1,11 @@
 <script setup>
 const { t, locale, setLocale } = useI18n()
-const { updateAvailable, updateVersion, isDownloading, downloadProgress, checkForUpdates, downloadAndInstall, dismiss } = useUpdater()
+const {
+  updateAvailable, updateVersion, isChecking, isDownloading,
+  downloadProgress, downloadedBytes, totalBytes, error,
+  appVersion, loadAppVersion, checkForUpdates, downloadAndInstall,
+  formatBytes, dismiss
+} = useUpdater()
 
 function toggleLocale() {
   setLocale(locale.value === 'ar' ? 'en' : 'ar')
@@ -40,7 +45,40 @@ const items = computed(() => [[
   }
 ]])
 
+const updateDescription = computed(() => {
+  if (error.value && !isDownloading.value) {
+    return error.value
+  }
+  if (isDownloading.value && downloadProgress.value >= 100) {
+    return t('updater.installing')
+  }
+  if (isDownloading.value && totalBytes.value > 0) {
+    return t('updater.downloadProgress', {
+      downloaded: formatBytes(downloadedBytes.value),
+      total: formatBytes(totalBytes.value)
+    })
+  }
+  if (isDownloading.value) {
+    return t('updater.downloading', { progress: downloadProgress.value })
+  }
+  return t('updater.clickToInstall')
+})
+
+const updateActions = computed(() => {
+  if (isDownloading.value) return []
+  if (error.value) {
+    return [{ label: t('updater.retry'), click: downloadAndInstall }]
+  }
+  return [{ label: t('updater.updateNow'), click: downloadAndInstall }]
+})
+
+const updateColor = computed(() => {
+  if (error.value && !isDownloading.value) return 'error'
+  return 'info'
+})
+
 onMounted(() => {
+  loadAppVersion()
   checkForUpdates()
 })
 </script>
@@ -79,7 +117,7 @@ onMounted(() => {
           class="mt-auto"
         />
 
-        <div class="px-3 pb-3">
+        <div class="px-3 pb-3 space-y-2">
           <UButton
             icon="i-lucide-languages"
             variant="ghost"
@@ -90,23 +128,38 @@ onMounted(() => {
           >
             <span v-if="!collapsed">{{ locale === 'ar' ? 'English' : 'العربية' }}</span>
           </UButton>
+
+          <p
+            v-if="!collapsed && appVersion"
+            class="text-xs text-center text-muted"
+          >
+            v{{ appVersion }}
+          </p>
         </div>
       </template>
     </UDashboardSidebar>
 
     <div class="flex flex-col flex-1 min-w-0">
-      <UAlert
-        v-if="updateAvailable"
-        icon="i-lucide-download"
-        color="info"
-        variant="subtle"
-        :title="$t('updater.newVersion', { version: updateVersion })"
-        :description="isDownloading ? $t('updater.downloading', { progress: downloadProgress }) : $t('updater.clickToInstall')"
-        :actions="isDownloading ? [] : [{ label: $t('updater.updateNow'), click: downloadAndInstall }]"
-        orientation="horizontal"
-        :close="!isDownloading"
-        @update:open="dismiss"
-      />
+      <div v-if="updateAvailable">
+        <UAlert
+          icon="i-lucide-download"
+          :color="updateColor"
+          variant="subtle"
+          :title="$t('updater.newVersion', { version: updateVersion })"
+          :description="updateDescription"
+          :actions="updateActions"
+          orientation="horizontal"
+          :close="!isDownloading"
+          @update:open="dismiss"
+        />
+        <UProgress
+          v-if="isDownloading"
+          :model-value="downloadProgress"
+          :max="100"
+          size="xs"
+          :color="downloadProgress >= 100 ? 'success' : 'info'"
+        />
+      </div>
 
       <slot />
     </div>

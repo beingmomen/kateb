@@ -47,7 +47,18 @@
     "newVersion": "New update available: v{version}",
     "downloading": "Downloading... {progress}%",
     "clickToInstall": "Click to download and install the update",
-    "updateNow": "Update now"
+    "updateNow": "Update now",
+    "checking": "Checking for updates...",
+    "upToDate": "You're up to date",
+    "upToDateDesc": "You are using the latest version",
+    "checkNow": "Check for updates",
+    "currentVersion": "Current version",
+    "downloadFailed": "Update download failed",
+    "downloadProgress": "{downloaded} / {total}",
+    "installing": "Installing and restarting...",
+    "retry": "Retry",
+    "updateSection": "Updates",
+    "checkFailed": "Failed to check for updates"
   },
   "home": {
     "title": "Home",

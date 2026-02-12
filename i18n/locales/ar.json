@@ -47,7 +47,18 @@
     "newVersion": "تحديث جديد متاح: v{version}",
     "downloading": "جاري التحميل... {progress}%",
     "clickToInstall": "اضغط لتحميل وتثبيت التحديث",
-    "updateNow": "تحديث الآن"
+    "updateNow": "تحديث الآن",
+    "checking": "جاري البحث عن تحديثات...",
+    "upToDate": "التطبيق محدّث",
+    "upToDateDesc": "أنت تستخدم أحدث إصدار",
+    "checkNow": "البحث عن تحديثات",
+    "currentVersion": "الإصدار الحالي",
+    "downloadFailed": "فشل تحميل التحديث",
+    "downloadProgress": "{downloaded} / {total}",
+    "installing": "جاري التثبيت وإعادة التشغيل...",
+    "retry": "إعادة المحاولة",
+    "updateSection": "التحديثات",
+    "checkFailed": "فشل البحث عن تحديثات"
   },
   "home": {
     "title": "الرئيسية",

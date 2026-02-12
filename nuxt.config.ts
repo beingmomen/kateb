@@ -86,7 +86,8 @@ export default defineNuxtConfig({
         'i-lucide-calendar',
         'i-lucide-clock',
         'i-lucide-chevron-down',
-        'i-lucide-x'
+        'i-lucide-x',
+        'i-lucide-shield-check'
       ]
     }
   }
