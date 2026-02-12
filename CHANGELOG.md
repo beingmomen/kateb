@@ -4,6 +4,14 @@ All notable changes to Kateb will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.5] - 2026-02-12
+
+### Fixed
+- Windows: custom AI provider URLs failing with "connection error" — added native OS certificate store support alongside bundled Mozilla CAs (`rustls-tls-native-roots`)
+
+### Changed
+- Windows installer: NSIS install mode set to "both" (per-user and per-machine) for better compatibility
+
 ## [1.0.4] - 2026-02-12
 
 ### Fixed

@@ -1,6 +1,6 @@
 {
   "productName": "Kateb",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "identifier": "com.beingmomen.kateb",
   "build": {
     "beforeBuildCommand": "pnpm generate",
@@ -56,7 +56,12 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "resources": []
+    "resources": [],
+    "windows": {
+      "nsis": {
+        "installMode": "both"
+      }
+    }
   },
   "plugins": {
     "shell": {
