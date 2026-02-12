@@ -167,6 +167,24 @@ fn update_shortcut(
     Ok(())
 }
 
+#[tauri::command]
+fn show_overlay(app: tauri::AppHandle) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window("overlay") {
+        let _ = window.show();
+        tracing::debug!("[overlay] Shown");
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn hide_overlay(app: tauri::AppHandle) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window("overlay") {
+        let _ = window.hide();
+        tracing::debug!("[overlay] Hidden");
+    }
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let _ = dotenvy::dotenv();
@@ -425,6 +443,8 @@ pub fn run() {
             commands::backup::export_settings,
             commands::backup::import_settings,
             update_shortcut,
+            show_overlay,
+            hide_overlay,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

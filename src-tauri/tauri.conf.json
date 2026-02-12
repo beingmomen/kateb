@@ -1,6 +1,6 @@
 {
   "productName": "Kateb",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "identifier": "com.beingmomen.kateb",
   "build": {
     "beforeBuildCommand": "pnpm generate",
@@ -14,12 +14,28 @@
     },
     "windows": [
       {
+        "label": "main",
         "title": "كاتِب — إملاء صوتي ذكي",
         "width": 1200,
         "height": 800,
         "resizable": true,
         "fullscreen": false,
         "center": true
+      },
+      {
+        "label": "overlay",
+        "url": "/overlay",
+        "title": "",
+        "width": 320,
+        "height": 100,
+        "resizable": false,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "transparent": true,
+        "skipTaskbar": true,
+        "visible": false,
+        "x": 20,
+        "y": 20
       }
     ],
     "trayIcon": {

@@ -10,6 +10,28 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use tauri::{Emitter, Manager, State};
 
+fn show_overlay_window(app: &tauri::AppHandle) {
+    if let Some(window) = app.get_webview_window("overlay") {
+        let _ = window.show();
+    }
+}
+
+fn hide_overlay_window(app: &tauri::AppHandle) {
+    if let Some(window) = app.get_webview_window("overlay") {
+        let _ = window.hide();
+    }
+}
+
+fn hide_overlay_delayed(app: &tauri::AppHandle, delay_secs: u64) {
+    let handle = app.clone();
+    tokio::spawn(async move {
+        tokio::time::sleep(std::time::Duration::from_secs(delay_secs)).await;
+        if let Some(window) = handle.get_webview_window("overlay") {
+            let _ = window.hide();
+        }
+    });
+}
+
 pub struct DictationState {
     pub recorder: Mutex<AudioRecorder>,
     pub transcriber: Mutex<WhisperTranscriber>,
@@ -520,6 +542,7 @@ pub async fn start_dictation(
 
     state.streaming_active.store(true, Ordering::SeqCst);
     emit_status(&app, true, false);
+    show_overlay_window(&app);
 
     let streaming_active = Arc::clone(&state.streaming_active);
     let app_handle = app.clone();
@@ -568,6 +591,7 @@ pub async fn stop_dictation(
             .map_err(|_| "lock error".to_string())?;
         *is_processing = false;
         emit_status(&app, false, false);
+        hide_overlay_window(&app);
         return Ok(String::new());
     }
 
@@ -590,6 +614,7 @@ pub async fn stop_dictation(
                     .map_err(|_| "lock error".to_string())?;
                 *is_processing = false;
                 emit_status(&app, false, false);
+                hide_overlay_window(&app);
                 return Err(e);
             }
         }
@@ -637,6 +662,9 @@ pub async fn stop_dictation(
             transcriber.get_language()
         };
         emit_final_result(&app, &text, duration, &language);
+        hide_overlay_delayed(&app, 3);
+    } else {
+        hide_overlay_window(&app);
     }
 
     Ok(text)

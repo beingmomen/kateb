@@ -1,7 +1,7 @@
 import { tauriInvoke } from '~/utils/tauri'
 
 export default defineNuxtRouteMiddleware(async (to) => {
-  if (to.path === '/welcome') {
+  if (to.path === '/welcome' || to.path === '/overlay') {
     return
   }
 

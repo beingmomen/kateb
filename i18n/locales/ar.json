@@ -40,7 +40,8 @@
     "seconds": "ثانية",
     "minutes": "دقيقة",
     "hours": "ساعة",
-    "and": "و"
+    "and": "و",
+    "done": "تم"
   },
   "updater": {
     "newVersion": "تحديث جديد متاح: v{version}",

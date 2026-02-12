@@ -4,6 +4,17 @@ All notable changes to Kateb will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.4] - 2026-02-12
+
+### Fixed
+- Sidebar toggle: removed broken theme override, now uses built-in DashboardNavbar mobile toggle
+
+### Added
+- Desktop overlay widget: floating always-on-top window showing real-time dictation status
+- Overlay shows recording (with audio level bar), processing, AI refinement, and result preview
+- Overlay auto-shows on dictation start and auto-hides 3s after result
+- `show_overlay` / `hide_overlay` Tauri commands for overlay window management
+
 ## [1.0.3] - 2026-02-12
 
 ### Fixed
