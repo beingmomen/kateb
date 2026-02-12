@@ -1,7 +1,7 @@
 <script setup>
 const { t, locale, setLocale } = useI18n()
 const {
-  updateAvailable, updateVersion, isChecking, isDownloading,
+  updateAvailable, updateVersion, isDownloading,
   downloadProgress, downloadedBytes, totalBytes, error,
   appVersion, loadAppVersion, checkForUpdates, downloadAndInstall,
   formatBytes, dismiss
