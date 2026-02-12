@@ -4,6 +4,13 @@ All notable changes to Kateb will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.8] - 2026-02-12
+
+### Fixed
+- Auto-stop firing during active speech — VAD calibration was capturing speech as noise baseline, causing all subsequent speech to be classified as silence
+- Capped VAD `noise_floor` at 0.01 to prevent speech-during-calibration from inflating the speech detection threshold
+- Increased minimum recording duration before auto-stop can activate from 2s to 5s
+
 ## [1.0.7] - 2026-02-12
 
 ### Fixed

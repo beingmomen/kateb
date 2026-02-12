@@ -48,7 +48,7 @@ impl AdaptiveVAD {
         if !self.calibrated {
             self.calibration_samples.extend_from_slice(audio);
             if self.calibration_samples.len() >= calibration_duration {
-                self.noise_floor = Self::compute_rms(&self.calibration_samples);
+                self.noise_floor = Self::compute_rms(&self.calibration_samples).min(0.01);
                 self.speech_threshold = (self.noise_floor * 3.0).max(0.003);
                 self.calibrated = true;
                 self.calibration_samples.clear();
@@ -68,7 +68,7 @@ impl AdaptiveVAD {
             self.silence_frames = 0;
         } else {
             self.silence_frames += 1;
-            self.noise_floor = self.noise_floor * 0.95 + rms * 0.05;
+            self.noise_floor = (self.noise_floor * 0.95 + rms * 0.05).min(0.01);
             self.speech_threshold = (self.noise_floor * 3.0).max(0.003);
         }
 

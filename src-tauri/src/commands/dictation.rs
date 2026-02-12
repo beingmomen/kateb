@@ -156,7 +156,7 @@ fn streaming_transcription_loop(streaming_active: Arc<AtomicBool>, app: tauri::A
                 let mut vad = state.vad.lock().unwrap();
                 vad.feed(&recent_audio);
 
-                if auto_stop_enabled.0 && recording_start.elapsed().as_secs_f32() > 2.0 {
+                if auto_stop_enabled.0 && recording_start.elapsed().as_secs_f32() > 5.0 {
                     let silence_dur = vad.silence_duration_secs();
                     let remaining = auto_stop_enabled.1 - silence_dur;
                     let _ = app.emit("silence-countdown", serde_json::json!({
@@ -196,7 +196,7 @@ fn streaming_transcription_loop(streaming_active: Arc<AtomicBool>, app: tauri::A
                 tracing::debug!("[streaming] VAD: no speech detected, skipping chunk");
                 last_processed_pos = current_len;
 
-                if auto_stop_enabled.0 && recording_start.elapsed().as_secs_f32() > 2.0 {
+                if auto_stop_enabled.0 && recording_start.elapsed().as_secs_f32() > 5.0 {
                     let silence_dur = vad.silence_duration_secs();
                     let remaining = auto_stop_enabled.1 - silence_dur;
                     let _ = app.emit("silence-countdown", serde_json::json!({
