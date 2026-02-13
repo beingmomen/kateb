@@ -43,6 +43,32 @@ pub struct DictationState {
     pub vad: Arc<Mutex<AdaptiveVAD>>,
 }
 
+fn clean_trailing_hallucinations(text: &str) -> String {
+    let mut result = text.trim().to_string();
+    let mut changed = true;
+
+    while changed {
+        changed = false;
+        let trimmed = result.trim_end();
+        let cleaned = trimmed
+            .trim_end_matches(|c: char| matches!(c, '.' | '،' | '؟' | '!' | '؛'))
+            .trim_end();
+
+        for pattern in CONTAINS_PATTERNS.iter().chain(EXACT_PATTERNS.iter()) {
+            if cleaned.ends_with(pattern) {
+                let prefix = &cleaned[..cleaned.len() - pattern.len()];
+                if prefix.is_empty() || prefix.ends_with(' ') || prefix.ends_with('\n') {
+                    result = prefix.trim_end().to_string();
+                    changed = true;
+                    break;
+                }
+            }
+        }
+    }
+
+    result.trim().to_string()
+}
+
 fn is_chunk_hallucination(text: &str, audio_duration_secs: f32) -> bool {
     let trimmed = text.trim();
     if trimmed.is_empty() {
@@ -595,14 +621,12 @@ pub async fn stop_dictation(
         acc.join(" ")
     };
 
-    let text = if !accumulated.trim().is_empty() {
-        tracing::debug!("[dictation] Using accumulated streaming text ({} chars), skipping re-transcription", accumulated.len());
-        accumulated
-    } else if speech_ratio < 0.1 {
-        tracing::info!("[dictation] Speech ratio {:.1}% too low, skipping transcription", speech_ratio * 100.0);
+    let text = if speech_ratio < 0.1 && accumulated.trim().is_empty() {
+        tracing::info!("[dictation] Speech ratio {:.1}% too low and no accumulated text, skipping transcription", speech_ratio * 100.0);
         String::new()
     } else {
-        tracing::debug!("[dictation] No accumulated text but {:.1}% speech, falling back to full transcription", speech_ratio * 100.0);
+        tracing::debug!("[dictation] Running full transcription on complete audio ({} samples, {:.1}s, speech_ratio={:.1}%)",
+            audio_data.len(), audio_data.len() as f64 / SAMPLE_RATE as f64, speech_ratio * 100.0);
         match transcribe_audio(&state, &audio_data) {
             Ok(t) => t,
             Err(e) => {
@@ -617,6 +641,12 @@ pub async fn stop_dictation(
             }
         }
     };
+
+    let cleaned_text = clean_trailing_hallucinations(&text);
+    if cleaned_text.len() != text.trim().len() {
+        tracing::debug!("[dictation] Cleaned trailing hallucinations: '{}' -> '{}'", text.trim(), cleaned_text);
+    }
+    let text = cleaned_text;
 
     let raw_text = text.clone();
     let refinement = match tokio::time::timeout(
