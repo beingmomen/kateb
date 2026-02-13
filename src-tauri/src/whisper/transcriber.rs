@@ -61,7 +61,7 @@ impl WhisperTranscriber {
         let mut state = ctx.create_state()
             .map_err(|e| anyhow::anyhow!("فشل إنشاء حالة Whisper: {}", e))?;
 
-        let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 3 });
+        let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
         params.set_language(Some(&self.language));
         params.set_translate(false);
         params.set_no_timestamps(true);
@@ -70,7 +70,7 @@ impl WhisperTranscriber {
         params.set_print_special(false);
         Self::apply_anti_hallucination(&mut params, &self.language);
 
-        tracing::debug!("[whisper] Running transcription with best_of=3 (language: {})...", self.language);
+        tracing::debug!("[whisper] Running transcription (language: {})...", self.language);
         let start = std::time::Instant::now();
         state
             .full(params, audio_data)

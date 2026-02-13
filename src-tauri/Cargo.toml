@@ -8,7 +8,7 @@ repository = "https://github.com/beingmomen/kateb"
 edition = "2021"
 
 [features]
-default = []
+default = ["cuda"]
 cuda = ["whisper-rs/cuda"]
 
 [lib]

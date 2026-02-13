@@ -57,4 +57,4 @@ jobs:
 
       - name: Check Rust compilation
         working-directory: src-tauri
-        run: cargo check
+        run: cargo check --no-default-features
