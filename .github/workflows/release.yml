@@ -15,18 +15,25 @@ jobs:
       matrix:
         include:
           - platform: ubuntu-22.04
-            args: '-- --no-default-features'
+            args: ''
           - platform: macos-latest
             args: '--target aarch64-apple-darwin -- --no-default-features'
           - platform: macos-latest
             args: '--target x86_64-apple-darwin -- --no-default-features'
           - platform: windows-latest
-            args: '-- --no-default-features'
+            args: ''
 
     runs-on: ${{ matrix.platform }}
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install CUDA toolkit (Linux/Windows)
+        if: matrix.platform != 'macos-latest'
+        uses: Jimver/cuda-toolkit@v0.2.30
+        with:
+          cuda: '12.6.3'
+          method: 'network'
 
       - name: Install system dependencies (Ubuntu)
         if: matrix.platform == 'ubuntu-22.04'
