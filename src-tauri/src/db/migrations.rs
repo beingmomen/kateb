@@ -46,6 +46,15 @@ pub fn run_migrations(conn: &Connection) -> Result<(), Box<dyn std::error::Error
         )?;
     }
 
+    conn.execute(
+        "UPDATE settings SET value = 'false' WHERE key = 'auto_stop_silence' AND value = 'true'",
+        [],
+    )?;
+    conn.execute(
+        "UPDATE settings SET value = '10' WHERE key = 'auto_stop_seconds' AND value = '5'",
+        [],
+    )?;
+
     Ok(())
 }
 
@@ -72,8 +81,8 @@ pub fn seed_default_settings(conn: &Connection) -> Result<(), Box<dyn std::error
         ("gemini_api_url", ""),
         ("grok_api_url", ""),
         ("local_api_url", ""),
-        ("auto_stop_silence", "true"),
-        ("auto_stop_seconds", "5"),
+        ("auto_stop_silence", "false"),
+        ("auto_stop_seconds", "10"),
     ];
 
     for (key, value) in defaults {

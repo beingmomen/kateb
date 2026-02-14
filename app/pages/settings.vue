@@ -52,8 +52,8 @@ const form = reactive({
   grok_api_url: '',
   local_api_url: '',
   use_gpu: false,
-  auto_stop_silence: true,
-  auto_stop_seconds: 5
+  auto_stop_silence: false,
+  auto_stop_seconds: 10
 })
 
 const original = reactive({ ...form })
@@ -88,9 +88,9 @@ function loadFormFromSettings() {
   form.local_api_url = getSettingValue('local_api_url', '')
   const gpuVal = getSettingValue('use_gpu', false)
   form.use_gpu = gpuVal === true || gpuVal === 'true'
-  const autoStopVal = getSettingValue('auto_stop_silence', true)
+  const autoStopVal = getSettingValue('auto_stop_silence', false)
   form.auto_stop_silence = autoStopVal === true || autoStopVal === 'true'
-  form.auto_stop_seconds = Number(getSettingValue('auto_stop_seconds', 5))
+  form.auto_stop_seconds = Number(getSettingValue('auto_stop_seconds', 10))
   Object.assign(original, form)
   original._actualShortcut = form.shortcut === 'custom' ? customShortcutDisplay.value : form.shortcut
 }

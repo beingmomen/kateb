@@ -4,7 +4,7 @@ pub mod audio {
     pub const CHUNK_SAMPLES: usize = (16000.0 * CHUNK_DURATION_SECS) as usize;
     pub const OVERLAP_SAMPLES: usize = (16000.0 * 0.75) as usize;
     pub const POLL_INTERVAL_MS: u64 = 250;
-    pub const AUTO_STOP_SILENCE_SECS: f32 = 5.0;
+    pub const AUTO_STOP_SILENCE_SECS: f32 = 10.0;
 }
 
 pub mod hallucination {

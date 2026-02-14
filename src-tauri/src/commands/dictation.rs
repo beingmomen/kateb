@@ -121,6 +121,7 @@ fn emit_status(app: &tauri::AppHandle, is_recording: bool, is_processing: bool) 
 
 fn streaming_transcription_loop(streaming_active: Arc<AtomicBool>, app: tauri::AppHandle) {
     let mut last_processed_pos: usize = 0;
+    let mut last_vad_pos: usize = 0;
     let mut chunk_index: u32 = 0;
 
     tracing::debug!("[streaming] Loop started");
@@ -143,14 +144,14 @@ fn streaming_transcription_loop(streaming_active: Arc<AtomicBool>, app: tauri::A
                 [],
                 |row| row.get::<_, String>(0),
             )
-            .unwrap_or_else(|_| "true".to_string());
+            .unwrap_or_else(|_| "false".to_string());
         let seconds: f32 = conn
             .query_row(
                 "SELECT value FROM settings WHERE key = 'auto_stop_seconds'",
                 [],
                 |row| row.get::<_, String>(0),
             )
-            .unwrap_or_else(|_| "5".to_string())
+            .unwrap_or_else(|_| "10".to_string())
             .parse()
             .unwrap_or(AUTO_STOP_SILENCE_SECS);
         (enabled == "true", seconds)
@@ -172,13 +173,14 @@ fn streaming_transcription_loop(streaming_active: Arc<AtomicBool>, app: tauri::A
 
         let new_samples = current_len.saturating_sub(last_processed_pos);
         if new_samples < CHUNK_SAMPLES {
-            if new_samples > 0 {
+            let new_vad_samples = current_len.saturating_sub(last_vad_pos);
+            if new_vad_samples > 0 {
                 let recent_audio = {
                     let recorder = state.recorder.lock().unwrap();
                     let full_buffer = recorder.get_buffer_snapshot();
-                    let start = current_len.saturating_sub(new_samples);
-                    full_buffer[start..current_len.min(full_buffer.len())].to_vec()
+                    full_buffer[last_vad_pos..current_len.min(full_buffer.len())].to_vec()
                 };
+                last_vad_pos = current_len;
                 let mut vad = state.vad.lock().unwrap();
                 vad.feed(&recent_audio);
 
@@ -218,6 +220,8 @@ fn streaming_transcription_loop(streaming_active: Arc<AtomicBool>, app: tauri::A
         {
             let mut vad = state.vad.lock().unwrap();
             let is_speech = vad.feed(&chunk_audio);
+            last_vad_pos = current_len;
+
             if !is_speech {
                 tracing::debug!("[streaming] VAD: no speech detected, skipping chunk");
                 last_processed_pos = current_len;
@@ -268,6 +272,10 @@ fn streaming_transcription_loop(streaming_active: Arc<AtomicBool>, app: tauri::A
             }
         };
 
+        if !streaming_active.load(Ordering::SeqCst) {
+            break;
+        }
+
         last_processed_pos = current_len;
         chunk_index += 1;
 
@@ -304,13 +312,22 @@ async fn stop_streaming_thread(state: &State<'_, DictationState>) -> Result<(), 
         thread_handle.take()
     };
     if let Some(h) = handle {
-        tokio::task::spawn_blocking(move || {
-            let _ = h.join();
-        })
-        .await
-        .map_err(|e| e.to_string())?;
+        let join_future = tokio::task::spawn_blocking(move || h.join());
+        match tokio::time::timeout(std::time::Duration::from_secs(5), join_future).await {
+            Ok(Ok(Ok(_))) => {
+                tracing::debug!("[dictation] Streaming thread joined successfully");
+            }
+            Ok(Ok(Err(_))) => {
+                tracing::warn!("[dictation] Streaming thread panicked");
+            }
+            Ok(Err(e)) => {
+                tracing::error!("[dictation] Thread join task error: {}", e);
+            }
+            Err(_) => {
+                tracing::warn!("[dictation] Streaming thread join timed out after 5s, proceeding");
+            }
+        }
     }
-    tracing::debug!("[dictation] Streaming thread joined successfully");
     Ok(())
 }
 
