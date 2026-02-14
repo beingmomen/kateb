@@ -29,7 +29,10 @@ useSeoMeta({
 
 <template>
   <NuxtPage v-if="isOverlay" />
-  <UApp v-else :locale="uiLocale">
+  <UApp
+    v-else
+    :locale="uiLocale"
+  >
     <NuxtLayout>
       <NuxtPage />
     </NuxtLayout>

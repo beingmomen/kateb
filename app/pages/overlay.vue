@@ -98,7 +98,7 @@ onMounted(async () => {
   try {
     const { getCurrentWindow } = await import('@tauri-apps/api/window')
     appWindow = getCurrentWindow()
-  } catch {}
+  } catch { /* tauri not available in browser */ }
 
   await tauriListen('dictation-status', (event) => {
     const { is_recording, is_processing } = event.payload
