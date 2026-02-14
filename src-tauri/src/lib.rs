@@ -375,10 +375,18 @@ pub fn run() {
                         if let Some(window) = app.get_webview_window("main") {
                             if window.is_visible().unwrap_or(false) {
                                 let _ = window.hide();
+                                if let Some(state) = app.try_state::<DictationState>() {
+                                    let active = state.is_recording.lock().map(|r| *r).unwrap_or(false)
+                                        || state.is_processing.lock().map(|p| *p).unwrap_or(false);
+                                    if active {
+                                        commands::dictation::show_overlay_window(app);
+                                    }
+                                }
                             } else {
                                 let _ = window.show();
                                 let _ = window.unminimize();
                                 let _ = window.set_focus();
+                                commands::dictation::hide_overlay_window(app);
                             }
                         }
                     }
@@ -400,6 +408,7 @@ pub fn run() {
                             let _ = window.unminimize();
                             let _ = window.set_focus();
                         }
+                        commands::dictation::hide_overlay_window(app);
                     }
                 })
                 .build(app)?;
@@ -410,6 +419,20 @@ pub fn run() {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 api.prevent_close();
                 let _ = window.hide();
+            }
+
+            if window.label() == "main" {
+                let main_hidden = !window.is_visible().unwrap_or(true);
+                let app = window.app_handle();
+                if let Some(state) = app.try_state::<DictationState>() {
+                    let is_recording = state.is_recording.lock().map(|r| *r).unwrap_or(false);
+                    let is_processing = state.is_processing.lock().map(|p| *p).unwrap_or(false);
+                    if main_hidden && (is_recording || is_processing) {
+                        commands::dictation::show_overlay_window(app);
+                    } else if !main_hidden {
+                        commands::dictation::hide_overlay_window(app);
+                    }
+                }
             }
         })
         .invoke_handler(tauri::generate_handler![

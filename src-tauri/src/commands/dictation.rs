@@ -10,7 +10,12 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use tauri::{Emitter, Manager, State};
 
-fn show_overlay_window(app: &tauri::AppHandle) {
+pub fn show_overlay_window(app: &tauri::AppHandle) {
+    if let Some(main_window) = app.get_webview_window("main") {
+        if main_window.is_visible().unwrap_or(false) {
+            return;
+        }
+    }
     if let Some(window) = app.get_webview_window("overlay") {
         if let Ok(Some(monitor)) = window.primary_monitor() {
             let screen = monitor.size();
@@ -25,7 +30,7 @@ fn show_overlay_window(app: &tauri::AppHandle) {
     }
 }
 
-fn hide_overlay_window(app: &tauri::AppHandle) {
+pub fn hide_overlay_window(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("overlay") {
         let _ = window.hide();
     }
