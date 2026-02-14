@@ -11,9 +11,6 @@ const isRecording = ref(false)
 const isProcessing = ref(false)
 const isRefining = ref(false)
 const lastResult = ref('')
-const refiningText = ref('')
-const streamingText = ref('')
-const audioLevel = ref(0)
 const recordingDuration = ref(0)
 const processingDuration = ref(0)
 const refiningDuration = ref(0)
@@ -86,12 +83,23 @@ const formatMs = (ms) => {
   return `${m}:${String(s).padStart(2, '0')}`
 }
 
+let appWindow = null
+
+function startDrag() {
+  if (appWindow) appWindow.startDragging()
+}
+
 async function hideOverlay() {
   visible.value = false
   await tauriInvoke('hide_overlay')
 }
 
 onMounted(async () => {
+  try {
+    const { getCurrentWindow } = await import('@tauri-apps/api/window')
+    appWindow = getCurrentWindow()
+  } catch {}
+
   await tauriListen('dictation-status', (event) => {
     const { is_recording, is_processing } = event.payload
     isRecording.value = is_recording
@@ -100,8 +108,6 @@ onMounted(async () => {
     if (is_recording) {
       visible.value = true
       lastResult.value = ''
-      refiningText.value = ''
-      streamingText.value = ''
       startDurationTimer()
     } else if (is_processing) {
       stopDurationTimer()
@@ -112,34 +118,15 @@ onMounted(async () => {
     }
   })
 
-  await tauriListen('audio-level', (event) => {
-    audioLevel.value = event.payload.level
-  })
-
-  await tauriListen('dictation-partial', (event) => {
-    const { text, is_final } = event.payload
-    if (is_final) {
-      lastResult.value = text
-      streamingText.value = ''
-    } else {
-      streamingText.value = (streamingText.value ? streamingText.value + ' ' : '') + text
-    }
-  })
-
   await tauriListen('ai-refine-status', (event) => {
     if (event.payload.status === 'started') {
       isRefining.value = true
-      refiningText.value = ''
       stopProcessingTimer()
       startRefiningTimer()
     } else if (event.payload.status === 'done' || event.payload.status === 'error') {
       isRefining.value = false
       stopRefiningTimer()
     }
-  })
-
-  await tauriListen('ai-refine-chunk', (event) => {
-    refiningText.value = event.payload.accumulated
   })
 
   await tauriListen('dictation-result', (event) => {
@@ -161,110 +148,36 @@ onUnmounted(() => {
 <template>
   <div
     v-if="visible && stage !== 'idle'"
-    class="overlay-root"
+    class="bubble"
     data-tauri-drag-region
+    @mousedown="startDrag"
   >
-    <div class="overlay-content">
-      <div class="overlay-header">
-        <div class="overlay-status">
-          <div
-            v-if="stage === 'recording'"
-            class="status-indicator recording"
-          />
-          <div
-            v-else-if="stage === 'processing'"
-            class="status-indicator processing"
-          />
-          <div
-            v-else-if="stage === 'refining'"
-            class="status-indicator refining"
-          />
-          <div
-            v-else-if="stage === 'done'"
-            class="status-indicator done"
-          />
+    <div :class="['dot', stage]" />
 
-          <span class="status-text">
-            <template v-if="stage === 'recording'">
-              {{ t('home.recording') }}
-            </template>
-            <template v-else-if="stage === 'processing'">
-              {{ t('home.processing') }}
-            </template>
-            <template v-else-if="stage === 'refining'">
-              {{ t('home.refining') }}
-            </template>
-            <template v-else-if="stage === 'done'">
-              {{ t('common.done') || '✓' }}
-            </template>
-          </span>
-        </div>
+    <span class="label">
+      <template v-if="stage === 'recording'">{{ t('home.recording') }}</template>
+      <template v-else-if="stage === 'processing'">{{ t('home.processing') }}</template>
+      <template v-else-if="stage === 'refining'">{{ t('home.refining') }}</template>
+      <template v-else-if="stage === 'done'">{{ t('common.done') || '✓' }}</template>
+    </span>
 
-        <div class="overlay-meta">
-          <span
-            v-if="stage === 'recording'"
-            class="timer"
-          >
-            {{ formatDuration(recordingDuration) }}
-          </span>
-          <span
-            v-else-if="stage === 'processing'"
-            class="timer"
-          >
-            {{ formatMs(processingDuration) }}
-          </span>
-          <span
-            v-else-if="stage === 'refining'"
-            class="timer"
-          >
-            {{ formatMs(refiningDuration) }}
-          </span>
+    <span class="timer">
+      <template v-if="stage === 'recording'">{{ formatDuration(recordingDuration) }}</template>
+      <template v-else-if="stage === 'processing'">{{ formatMs(processingDuration) }}</template>
+      <template v-else-if="stage === 'refining'">{{ formatMs(refiningDuration) }}</template>
+    </span>
 
-          <button
-            class="close-btn"
-            @click.stop="hideOverlay"
-          >
-            ✕
-          </button>
-        </div>
-      </div>
-
-      <div
-        v-if="stage === 'recording'"
-        class="audio-bar-container"
-      >
-        <div
-          class="audio-bar"
-          :style="{ width: Math.min(audioLevel * 100, 100) + '%' }"
-        />
-      </div>
-
-      <div
-        v-if="stage === 'recording' && streamingText"
-        class="overlay-text"
-      >
-        {{ streamingText.length > 80 ? '...' + streamingText.slice(-80) : streamingText }}
-      </div>
-
-      <div
-        v-if="stage === 'refining' && refiningText"
-        class="overlay-text"
-      >
-        {{ refiningText.length > 80 ? '...' + refiningText.slice(-80) : refiningText }}
-      </div>
-
-      <div
-        v-if="stage === 'done' && lastResult"
-        class="overlay-text done-text"
-      >
-        {{ lastResult.length > 80 ? lastResult.slice(0, 80) + '...' : lastResult }}
-      </div>
-    </div>
+    <button
+      class="close"
+      @click.stop="hideOverlay"
+    >
+      ✕
+    </button>
   </div>
 </template>
 
 <style>
-html, body {
+html, body, #__nuxt {
   margin: 0;
   padding: 0;
   background: transparent !important;
@@ -273,76 +186,55 @@ html, body {
 </style>
 
 <style scoped>
-.overlay-root {
+.bubble {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
   font-family: system-ui, -apple-system, sans-serif;
-  background: rgba(15, 23, 42, 0.92);
-  backdrop-filter: blur(12px);
-  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.95);
+  border-radius: 28px;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 10px 14px;
+  padding: 10px 18px;
   color: #e2e8f0;
   cursor: grab;
   user-select: none;
-  min-width: 280px;
-  max-width: 300px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  white-space: nowrap;
 }
 
-.overlay-content {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.overlay-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.overlay-status {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.overlay-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.status-indicator {
+.dot {
   width: 10px;
   height: 10px;
   border-radius: 50%;
   flex-shrink: 0;
 }
 
-.status-indicator.recording {
+.dot.recording {
   background: #ef4444;
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
   animation: pulse 1s ease-in-out infinite;
 }
 
-.status-indicator.processing {
+.dot.processing {
   background: #f59e0b;
   animation: spin-dot 1s linear infinite;
 }
 
-.status-indicator.refining {
+.dot.refining {
   background: #8b5cf6;
+  box-shadow: 0 0 8px rgba(139, 92, 246, 0.6);
   animation: pulse 1.5s ease-in-out infinite;
 }
 
-.status-indicator.done {
+.dot.done {
   background: #10b981;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
 }
 
-.status-text {
+.label {
   font-size: 13px;
-  font-weight: 500;
-  white-space: nowrap;
+  font-weight: 600;
+  letter-spacing: 0.02em;
 }
 
 .timer {
@@ -352,54 +244,27 @@ html, body {
   font-weight: 500;
 }
 
-.close-btn {
+.close {
   background: none;
   border: none;
-  color: #64748b;
+  color: #475569;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 11px;
   padding: 2px 4px;
-  border-radius: 4px;
+  border-radius: 50%;
   line-height: 1;
+  margin-inline-start: 2px;
   transition: color 0.15s, background 0.15s;
 }
 
-.close-btn:hover {
+.close:hover {
   color: #e2e8f0;
   background: rgba(255, 255, 255, 0.1);
 }
 
-.audio-bar-container {
-  height: 3px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 2px;
-  overflow: hidden;
-}
-
-.audio-bar {
-  height: 100%;
-  background: linear-gradient(90deg, #10b981, #ef4444);
-  border-radius: 2px;
-  transition: width 0.1s ease-out;
-}
-
-.overlay-text {
-  font-size: 11px;
-  color: #94a3b8;
-  line-height: 1.4;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  direction: rtl;
-}
-
-.done-text {
-  color: #10b981;
-}
-
 @keyframes pulse {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+  50% { opacity: 0.3; }
 }
 
 @keyframes spin-dot {

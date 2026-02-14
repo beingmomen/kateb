@@ -12,6 +12,15 @@ use tauri::{Emitter, Manager, State};
 
 fn show_overlay_window(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("overlay") {
+        if let Ok(Some(monitor)) = window.primary_monitor() {
+            let screen = monitor.size();
+            let scale = monitor.scale_factor();
+            let w = 300.0;
+            let h = 80.0;
+            let x = (screen.width as f64 / scale - w) / 2.0;
+            let y = (screen.height as f64 / scale) * 0.80;
+            let _ = window.set_position(tauri::LogicalPosition::new(x, y));
+        }
         let _ = window.show();
     }
 }
@@ -633,29 +642,19 @@ pub async fn stop_dictation(
         vad.speech_ratio()
     };
 
-    let accumulated = {
-        let acc = state.accumulated_text.lock().map_err(|e| e.to_string())?;
-        acc.join(" ")
-    };
-
-    let text = if speech_ratio < 0.1 && accumulated.trim().is_empty() {
-        tracing::info!("[dictation] Speech ratio {:.1}% too low and no accumulated text, skipping transcription", speech_ratio * 100.0);
-        String::new()
-    } else {
-        tracing::debug!("[dictation] Running full transcription on complete audio ({} samples, {:.1}s, speech_ratio={:.1}%)",
-            audio_data.len(), audio_data.len() as f64 / SAMPLE_RATE as f64, speech_ratio * 100.0);
-        match transcribe_audio(&state, &audio_data) {
-            Ok(t) => t,
-            Err(e) => {
-                let mut is_processing = state
-                    .is_processing
-                    .lock()
-                    .map_err(|_| "lock error".to_string())?;
-                *is_processing = false;
-                emit_status(&app, false, false);
-                hide_overlay_window(&app);
-                return Err(e);
-            }
+    tracing::debug!("[dictation] Running full transcription on complete audio ({} samples, {:.1}s, speech_ratio={:.1}%)",
+        audio_data.len(), audio_data.len() as f64 / SAMPLE_RATE as f64, speech_ratio * 100.0);
+    let text = match transcribe_audio(&state, &audio_data) {
+        Ok(t) => t,
+        Err(e) => {
+            let mut is_processing = state
+                .is_processing
+                .lock()
+                .map_err(|_| "lock error".to_string())?;
+            *is_processing = false;
+            emit_status(&app, false, false);
+            hide_overlay_window(&app);
+            return Err(e);
         }
     };
 

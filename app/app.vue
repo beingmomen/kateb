@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ar, en } from '@nuxt/ui/locale'
 
+const route = useRoute()
 const { locale } = useI18n()
 
 const uiLocale = computed(() => (locale.value === 'ar' ? ar : en))
+const isOverlay = computed(() => route.path === '/overlay')
 
 useHead(computed(() => ({
   meta: [{ name: 'viewport', content: 'width=device-width, initial-scale=1' }],
@@ -26,7 +28,8 @@ useSeoMeta({
 </script>
 
 <template>
-  <UApp :locale="uiLocale">
+  <NuxtPage v-if="isOverlay" />
+  <UApp v-else :locale="uiLocale">
     <NuxtLayout>
       <NuxtPage />
     </NuxtLayout>
