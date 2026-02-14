@@ -10,33 +10,19 @@ jobs:
   release:
     permissions:
       contents: write
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: ubuntu-22.04
-            args: ''
-          - platform: macos-latest
-            args: '--target aarch64-apple-darwin -- --no-default-features'
-          - platform: macos-latest
-            args: '--target x86_64-apple-darwin -- --no-default-features'
-          - platform: windows-latest
-            args: ''
 
-    runs-on: ${{ matrix.platform }}
+    runs-on: ubuntu-22.04
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install CUDA toolkit (Linux/Windows)
-        if: matrix.platform != 'macos-latest'
+      - name: Install CUDA toolkit
         uses: Jimver/cuda-toolkit@v0.2.30
         with:
           cuda: '12.6.3'
           method: 'network'
 
-      - name: Install system dependencies (Ubuntu)
-        if: matrix.platform == 'ubuntu-22.04'
+      - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -49,10 +35,6 @@ jobs:
             libxdo-dev \
             cmake
 
-      - name: Install cmake (macOS)
-        if: matrix.platform == 'macos-latest'
-        run: brew install cmake
-
       - name: Install pnpm
         uses: pnpm/action-setup@v4
 
@@ -64,8 +46,6 @@ jobs:
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
@@ -80,10 +60,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          MACOSX_DEPLOYMENT_TARGET: ${{ matrix.platform == 'macos-latest' && '11.0' || '' }}
-          CMAKE_OSX_DEPLOYMENT_TARGET: ${{ matrix.platform == 'macos-latest' && '11.0' || '' }}
-          CFLAGS: ${{ contains(matrix.args, 'aarch64') && '-march=armv8.2-a+dotprod' || (matrix.platform == 'ubuntu-22.04' && '-march=x86-64-v3' || '') }}
-          CXXFLAGS: ${{ contains(matrix.args, 'aarch64') && '-march=armv8.2-a+dotprod' || (matrix.platform == 'ubuntu-22.04' && '-march=x86-64-v3' || '') }}
+          CFLAGS: '-march=x86-64-v3'
+          CXXFLAGS: '-march=x86-64-v3'
         with:
           tagName: v__VERSION__
           releaseName: 'Kateb v__VERSION__'
@@ -94,8 +72,5 @@ jobs:
 
             ### التنزيل
             - **Linux**: `.deb` أو `.AppImage`
-            - **macOS**: `.dmg`
-            - **Windows**: `.msi` أو `.exe`
           releaseDraft: true
           prerelease: false
-          args: ${{ matrix.args }}

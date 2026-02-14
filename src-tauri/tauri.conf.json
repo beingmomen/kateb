@@ -1,6 +1,6 @@
 {
   "productName": "Kateb",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "identifier": "com.beingmomen.kateb",
   "build": {
     "beforeBuildCommand": "pnpm generate",
@@ -47,7 +47,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": ["deb", "appimage"],
     "createUpdaterArtifacts": true,
     "icon": [
       "icons/32x32.png",
