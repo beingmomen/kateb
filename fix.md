@@ -101,3 +101,12 @@ This file documents issues encountered during development and their solutions.
 **Solution**: Added separate `release-windows-gpu` job in release workflow. CPU build uses `tauri-action` (default, no CUDA). GPU build compiles with `--features cuda`, renames artifacts to `Kateb-GPU_*`, and uploads alongside CPU artifacts
 **Files Modified**: `.github/workflows/release.yml`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`
 **Prevention**: Always provide CPU-only as default; GPU as separate opt-in download
+
+---
+
+### [2026-02-15] - Add Linux GPU build to release
+**Problem**: Linux users with NVIDIA GPUs also need a CUDA-accelerated build for faster Whisper inference
+**Root Cause**: Only Windows had a GPU build variant; Linux was CPU-only
+**Solution**: Added `release-linux-gpu` job that builds with `--features cuda`, renames `.deb`/`.AppImage` artifacts to `kateb-gpu_*`, and uploads alongside CPU artifacts
+**Files Modified**: `.github/workflows/release.yml`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`
+**Prevention**: When adding GPU builds, cover all target platforms

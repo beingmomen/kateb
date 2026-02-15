@@ -75,7 +75,8 @@ jobs:
             ### التنزيل
             - **Windows (CPU)**: `Kateb_*_x64-setup.exe` — يعمل على أي جهاز
             - **Windows (GPU)**: `Kateb-GPU_*_x64-setup.exe` — أسرع، يتطلب كرت NVIDIA
-            - **Linux**: `.deb` أو `.AppImage`
+            - **Linux (CPU)**: `.deb` أو `.AppImage` — يعمل على أي جهاز
+            - **Linux (GPU)**: `kateb-gpu_*` — أسرع، يتطلب كرت NVIDIA
           releaseDraft: true
           prerelease: false
 
@@ -133,3 +134,75 @@ jobs:
         run: |
           VERSION=$(jq -r .version src-tauri/tauri.conf.json)
           gh release upload "v${VERSION}" src-tauri/target/release/bundle/nsis/Kateb-GPU_* --clobber
+
+  release-linux-gpu:
+    needs: release
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libasound2-dev \
+            libxtst-dev \
+            libxdo-dev \
+            cmake
+
+      - name: Install CUDA toolkit
+        uses: Jimver/cuda-toolkit@v0.2.30
+        with:
+          cuda: '12.6.3'
+          method: 'network'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Install frontend dependencies
+        run: pnpm install
+
+      - name: Build GPU version
+        run: pnpm tauri build -- --features cuda
+
+      - name: Rename GPU artifacts
+        run: |
+          for dir in src-tauri/target/release/bundle/deb src-tauri/target/release/bundle/appimage; do
+            if [ -d "$dir" ]; then
+              for f in "$dir"/*; do
+                newname=$(basename "$f" | sed 's/kateb_/kateb-gpu_/g; s/Kateb_/Kateb-GPU_/g')
+                mv "$f" "$dir/$newname"
+              done
+            fi
+          done
+
+      - name: Upload GPU artifacts to release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION=$(jq -r .version src-tauri/tauri.conf.json)
+          gh release upload "v${VERSION}" \
+            src-tauri/target/release/bundle/deb/kateb-gpu_* \
+            src-tauri/target/release/bundle/appimage/kateb-gpu_* \
+            --clobber
