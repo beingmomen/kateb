@@ -83,3 +83,12 @@ This file documents issues encountered during development and their solutions.
 **Files Modified**: `src-tauri/Cargo.toml`, `src-tauri/src/whisper/transcriber.rs`
 **API Changes in 0.15**: `full_n_segments()` returns `i32` (not `Result`), `full_get_segment_text(i)` replaced by `get_segment(i)` returning `Option<WhisperSegment>`, segment text accessed via `segment.to_str()`
 **Prevention**: Check crate changelog before upgrading major features
+
+---
+
+### [2026-02-15] - Windows Release Crashes with Missing CUDA DLLs
+**Problem**: `kateb.exe` fails to launch on Windows with errors: `cublas64_12.dll`, `nvcuda.dll`, and `cudart64_12.dll` not found
+**Root Cause**: `Cargo.toml` had `default = ["cuda"]` which compiled whisper-rs with CUDA support, linking NVIDIA libraries that don't exist on machines without NVIDIA GPUs
+**Solution**: Changed default features to `default = []` (CPU-only). Removed CUDA toolkit installation step from `release.yml`. CUDA remains opt-in via `--features cuda`
+**Files Modified**: `src-tauri/Cargo.toml`, `.github/workflows/release.yml`
+**Prevention**: Never enable GPU-specific features by default in cross-platform apps; keep them opt-in

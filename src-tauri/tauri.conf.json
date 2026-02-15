@@ -1,6 +1,6 @@
 {
   "productName": "Kateb",
-  "version": "1.0.14",
+  "version": "1.0.15",
   "identifier": "com.beingmomen.kateb",
   "build": {
     "beforeBuildCommand": "pnpm generate",

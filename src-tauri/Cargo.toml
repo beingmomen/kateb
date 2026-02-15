@@ -1,6 +1,6 @@
 [package]
 name = "kateb"
-version = "1.0.14"
+version = "1.0.15"
 description = "Kateb - Arabic & English voice dictation desktop app powered by Whisper AI"
 authors = ["Abdelmomen Elshatory <beingmomen@gmail.com>"]
 license = "MIT"
@@ -8,7 +8,7 @@ repository = "https://github.com/beingmomen/kateb"
 edition = "2021"
 
 [features]
-default = ["cuda"]
+default = []
 cuda = ["whisper-rs/cuda"]
 
 [lib]

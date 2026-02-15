@@ -23,12 +23,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install CUDA toolkit
-        uses: Jimver/cuda-toolkit@v0.2.30
-        with:
-          cuda: '12.6.3'
-          method: 'network'
-
       - name: Install system dependencies (Linux)
         if: matrix.platform == 'ubuntu-22.04'
         run: |
