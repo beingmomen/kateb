@@ -73,7 +73,63 @@ jobs:
             تطبيق إملاء صوتي ذكي بالعربية والإنجليزية.
 
             ### التنزيل
-            - **Windows**: `.exe` (NSIS installer)
+            - **Windows (CPU)**: `Kateb_*_x64-setup.exe` — يعمل على أي جهاز
+            - **Windows (GPU)**: `Kateb-GPU_*_x64-setup.exe` — أسرع، يتطلب كرت NVIDIA
             - **Linux**: `.deb` أو `.AppImage`
           releaseDraft: true
           prerelease: false
+
+  release-windows-gpu:
+    needs: release
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install CUDA toolkit
+        uses: Jimver/cuda-toolkit@v0.2.30
+        with:
+          cuda: '12.6.3'
+          method: 'network'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Install frontend dependencies
+        run: pnpm install
+
+      - name: Build GPU version
+        run: pnpm tauri build -- --features cuda
+
+      - name: Rename GPU artifacts
+        shell: pwsh
+        run: |
+          $nsisDir = "src-tauri/target/release/bundle/nsis"
+          Get-ChildItem $nsisDir -File | ForEach-Object {
+            $newName = $_.Name -replace 'Kateb_', 'Kateb-GPU_'
+            Rename-Item $_.FullName -NewName $newName
+          }
+
+      - name: Upload GPU artifacts to release
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION=$(jq -r .version src-tauri/tauri.conf.json)
+          gh release upload "v${VERSION}" src-tauri/target/release/bundle/nsis/Kateb-GPU_* --clobber

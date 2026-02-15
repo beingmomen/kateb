@@ -92,3 +92,12 @@ This file documents issues encountered during development and their solutions.
 **Solution**: Changed default features to `default = []` (CPU-only). Removed CUDA toolkit installation step from `release.yml`. CUDA remains opt-in via `--features cuda`
 **Files Modified**: `src-tauri/Cargo.toml`, `.github/workflows/release.yml`
 **Prevention**: Never enable GPU-specific features by default in cross-platform apps; keep them opt-in
+
+---
+
+### [2026-02-15] - Add dual Windows release (CPU + GPU)
+**Problem**: Users with NVIDIA GPUs want faster Whisper inference via CUDA, but a single CUDA build breaks on non-NVIDIA machines
+**Root Cause**: Single build can't serve both GPU and non-GPU users
+**Solution**: Added separate `release-windows-gpu` job in release workflow. CPU build uses `tauri-action` (default, no CUDA). GPU build compiles with `--features cuda`, renames artifacts to `Kateb-GPU_*`, and uploads alongside CPU artifacts
+**Files Modified**: `.github/workflows/release.yml`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`
+**Prevention**: Always provide CPU-only as default; GPU as separate opt-in download
