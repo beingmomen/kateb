@@ -11,7 +11,14 @@ jobs:
     permissions:
       contents: write
 
-    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: ubuntu-22.04
+          - platform: windows-latest
+
+    runs-on: ${{ matrix.platform }}
 
     steps:
       - uses: actions/checkout@v4
@@ -22,7 +29,8 @@ jobs:
           cuda: '12.6.3'
           method: 'network'
 
-      - name: Install system dependencies
+      - name: Install system dependencies (Linux)
+        if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -60,8 +68,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          CFLAGS: '-march=x86-64-v3'
-          CXXFLAGS: '-march=x86-64-v3'
+          CFLAGS: ${{ matrix.platform == 'ubuntu-22.04' && '-march=x86-64-v3' || '' }}
+          CXXFLAGS: ${{ matrix.platform == 'ubuntu-22.04' && '-march=x86-64-v3' || '' }}
         with:
           tagName: v__VERSION__
           releaseName: 'Kateb v__VERSION__'
@@ -71,6 +79,7 @@ jobs:
             تطبيق إملاء صوتي ذكي بالعربية والإنجليزية.
 
             ### التنزيل
+            - **Windows**: `.exe` (NSIS installer)
             - **Linux**: `.deb` أو `.AppImage`
           releaseDraft: true
           prerelease: false
