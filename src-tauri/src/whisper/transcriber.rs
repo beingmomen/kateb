@@ -62,6 +62,10 @@ impl WhisperTranscriber {
             .map_err(|e| anyhow::anyhow!("فشل إنشاء حالة Whisper: {}", e))?;
 
         let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
+        let n_threads = std::thread::available_parallelism()
+            .map(|n| n.get() as i32)
+            .unwrap_or(4);
+        params.set_n_threads(n_threads);
         params.set_language(Some(&self.language));
         params.set_translate(false);
         params.set_no_timestamps(true);
@@ -70,7 +74,7 @@ impl WhisperTranscriber {
         params.set_print_special(false);
         Self::apply_anti_hallucination(&mut params, &self.language);
 
-        tracing::debug!("[whisper] Running transcription (language: {})...", self.language);
+        tracing::debug!("[whisper] Running transcription (language: {}, threads: {})...", self.language, n_threads);
         let start = std::time::Instant::now();
         state
             .full(params, audio_data)
@@ -104,6 +108,10 @@ impl WhisperTranscriber {
             .map_err(|e| anyhow::anyhow!("فشل إنشاء حالة Whisper: {}", e))?;
 
         let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
+        let n_threads = std::thread::available_parallelism()
+            .map(|n| n.get() as i32)
+            .unwrap_or(4);
+        params.set_n_threads(n_threads);
         params.set_language(Some(&self.language));
         params.set_translate(false);
         params.set_no_timestamps(true);

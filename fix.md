@@ -137,3 +137,21 @@ This file documents issues encountered during development and their solutions.
 **Solution**: Changed upload glob from `*gpu*` to `*GPU*` for the deb directory
 **Files Modified**: `.github/workflows/release.yml`
 **Prevention**: Match exact casing of renamed artifacts in upload globs
+
+---
+
+### [2026-02-16] - CPU Whisper Transcription Extremely Slow (500+ seconds)
+**Problem**: Windows CPU version takes 500+ seconds to process 9 seconds of audio, never finishes
+**Root Cause**: `FullParams` in `transcriber.rs` never called `set_n_threads()`. The whisper-rs default is `min(4, hardware_concurrency)` — only 4 threads max. For large models (1.6GB large-v3-turbo) on CPU with limited threads, this is expected to be extremely slow
+**Solution**: Added `set_n_threads()` using `std::thread::available_parallelism()` to utilize all available CPU cores in both `transcribe()` and `transcribe_chunk()` methods
+**Files Modified**: `src-tauri/src/whisper/transcriber.rs`
+**Prevention**: Always configure thread count explicitly for CPU-intensive operations; don't rely on library defaults
+
+---
+
+### [2026-02-16] - Auto-Updater TypeError: Cannot read private member
+**Problem**: Ubuntu v1.0.13 auto-updater fails with `TypeError: Cannot read private member from an object whose class did not declare it`
+**Root Cause**: The `Resource` class in `@tauri-apps/api/core` uses `tslib`'s `WeakMap`-based private field storage. Dynamic imports (`await import('@tauri-apps/plugin-updater')`) caused Vite's code-splitting to create duplicate copies of `@tauri-apps/api/core` in separate chunks. The `Update` object was registered in one WeakMap but the `rid` getter tried to read from another
+**Solution**: Changed all dynamic imports (`await import(...)`) to static imports (`import { ... } from ...`) in `useUpdater.js` to prevent code-splitting duplication of the `Resource` class
+**Files Modified**: `app/composables/useUpdater.js`
+**Prevention**: Use static imports for Tauri plugins that return `Resource`-based objects (updater, etc.) to avoid `WeakMap` duplication from code-splitting

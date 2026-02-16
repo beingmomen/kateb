@@ -1,4 +1,7 @@
 import { isTauri } from '~/utils/tauri'
+import { check } from '@tauri-apps/plugin-updater'
+import { getVersion } from '@tauri-apps/api/app'
+import { relaunch } from '@tauri-apps/plugin-process'
 
 export function useUpdater() {
   const updateAvailable = ref(false)
@@ -19,7 +22,6 @@ export function useUpdater() {
       return
     }
     try {
-      const { getVersion } = await import('@tauri-apps/api/app')
       appVersion.value = await getVersion()
     } catch {
       appVersion.value = ''
@@ -33,7 +35,6 @@ export function useUpdater() {
     error.value = ''
 
     try {
-      const { check } = await import('@tauri-apps/plugin-updater')
       const update = await check()
 
       if (update) {
@@ -101,7 +102,6 @@ export function useUpdater() {
         }
       })
 
-      const { relaunch } = await import('@tauri-apps/plugin-process')
       await relaunch()
     } catch (e) {
       console.error('[updater] Download failed:', e)
