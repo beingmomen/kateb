@@ -119,3 +119,12 @@ This file documents issues encountered during development and their solutions.
 **Solution**: Added `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` env vars to the "Build GPU version" step in both GPU jobs
 **Files Modified**: `.github/workflows/release.yml`
 **Prevention**: When using `pnpm tauri build` directly (outside `tauri-action`), always pass the same env vars that `tauri-action` uses
+
+---
+
+### [2026-02-16] - Linux GPU rename fails on Kateb.AppDir directory
+**Problem**: `release-linux-gpu` rename step fails: `mv: cannot move 'Kateb.AppDir' to a subdirectory of itself`
+**Root Cause**: The `appimage/` bundle directory contains `Kateb.AppDir/` (temp build dir) alongside `Kateb_*.AppImage`. The `for f in "$dir"/*` glob matched both files and directories
+**Solution**: Replaced glob with `find -maxdepth 1 -type f` to only rename files, and added `-name` filters to only target `kateb_*`/`Kateb_*` patterns
+**Files Modified**: `.github/workflows/release.yml`
+**Prevention**: When renaming build artifacts, always filter by `-type f` and specific name patterns to avoid temp directories

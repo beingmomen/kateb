@@ -196,7 +196,7 @@ jobs:
         run: |
           for dir in src-tauri/target/release/bundle/deb src-tauri/target/release/bundle/appimage; do
             if [ -d "$dir" ]; then
-              for f in "$dir"/*; do
+              find "$dir" -maxdepth 1 -type f \( -name 'kateb_*' -o -name 'Kateb_*' \) | while read f; do
                 newname=$(basename "$f" | sed 's/kateb_/kateb-gpu_/g; s/Kateb_/Kateb-GPU_/g')
                 mv "$f" "$dir/$newname"
               done
@@ -209,6 +209,6 @@ jobs:
         run: |
           VERSION=$(jq -r .version src-tauri/tauri.conf.json)
           gh release upload "v${VERSION}" \
-            src-tauri/target/release/bundle/deb/kateb-gpu_* \
-            src-tauri/target/release/bundle/appimage/kateb-gpu_* \
+            src-tauri/target/release/bundle/deb/*gpu* \
+            src-tauri/target/release/bundle/appimage/*GPU* \
             --clobber
