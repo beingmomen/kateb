@@ -1,6 +1,6 @@
 [package]
 name = "kateb"
-version = "1.0.19"
+version = "1.0.20"
 description = "Kateb - Arabic & English voice dictation desktop app powered by Whisper AI"
 authors = ["Abdelmomen Elshatory <beingmomen@gmail.com>"]
 license = "MIT"

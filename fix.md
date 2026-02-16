@@ -128,3 +128,12 @@ This file documents issues encountered during development and their solutions.
 **Solution**: Replaced glob with `find -maxdepth 1 -type f` to only rename files, and added `-name` filters to only target `kateb_*`/`Kateb_*` patterns
 **Files Modified**: `.github/workflows/release.yml`
 **Prevention**: When renaming build artifacts, always filter by `-type f` and specific name patterns to avoid temp directories
+
+---
+
+### [2026-02-16] - Linux GPU upload fails: glob case mismatch
+**Problem**: Upload step fails with `no matches found for src-tauri/target/release/bundle/deb/*gpu*`
+**Root Cause**: Tauri names deb files `Kateb_*` (capital K). After rename → `Kateb-GPU_*`. Upload glob used `*gpu*` (lowercase) which doesn't match
+**Solution**: Changed upload glob from `*gpu*` to `*GPU*` for the deb directory
+**Files Modified**: `.github/workflows/release.yml`
+**Prevention**: Match exact casing of renamed artifacts in upload globs

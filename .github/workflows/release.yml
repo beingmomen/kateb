@@ -209,6 +209,6 @@ jobs:
         run: |
           VERSION=$(jq -r .version src-tauri/tauri.conf.json)
           gh release upload "v${VERSION}" \
-            src-tauri/target/release/bundle/deb/*gpu* \
+            src-tauri/target/release/bundle/deb/*GPU* \
             src-tauri/target/release/bundle/appimage/*GPU* \
             --clobber
