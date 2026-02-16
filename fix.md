@@ -155,3 +155,12 @@ This file documents issues encountered during development and their solutions.
 **Solution**: Changed all dynamic imports (`await import(...)`) to static imports (`import { ... } from ...`) in `useUpdater.js` to prevent code-splitting duplication of the `Resource` class
 **Files Modified**: `app/composables/useUpdater.js`
 **Prevention**: Use static imports for Tauri plugins that return `Resource`-based objects (updater, etc.) to avoid `WeakMap` duplication from code-splitting
+
+---
+
+### [2026-02-16] - Windows GPU Build Missing CUDA DLLs
+**Problem**: Windows GPU version (`Kateb-GPU_*_x64-setup.exe`) crashes at startup with `cublas64_12.dll was not found` (appears twice for different DLLs)
+**Root Cause**: The GPU build compiles whisper-rs with `--features cuda` which dynamically links CUDA libraries. These DLLs exist on the GitHub Actions runner (CUDA toolkit installed) but not on the user's machine. The NSIS installer didn't bundle them
+**Solution**: Added CI steps to copy CUDA runtime DLLs (`cublas64_12.dll`, `cublasLt64_12.dll`, `cudart64_12.dll`) to a staging directory and inject them into `tauri.conf.json` resources before building. Applied same fix for Linux GPU build with `.so` libraries
+**Files Modified**: `.github/workflows/release.yml`
+**Prevention**: When building with dynamic library dependencies (CUDA, etc.), always bundle the required runtime libraries with the installer

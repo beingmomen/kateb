@@ -115,6 +115,23 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm install
 
+      - name: Bundle CUDA runtime DLLs
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path "src-tauri/cuda-dlls" -Force
+          $cudaBin = "$env:CUDA_PATH\bin"
+          @("cublas64_12.dll", "cublasLt64_12.dll", "cudart64_12.dll") | ForEach-Object {
+            Copy-Item "$cudaBin\$_" "src-tauri/cuda-dlls/" -Force
+            Write-Host "Copied $_"
+          }
+
+      - name: Configure GPU resource bundling
+        shell: pwsh
+        run: |
+          $conf = Get-Content "src-tauri/tauri.conf.json" -Raw | ConvertFrom-Json
+          $conf.bundle.resources = @("cuda-dlls/*")
+          $conf | ConvertTo-Json -Depth 10 | Set-Content "src-tauri/tauri.conf.json"
+
       - name: Build GPU version
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -185,6 +202,19 @@ jobs:
 
       - name: Install frontend dependencies
         run: pnpm install
+
+      - name: Bundle CUDA runtime libraries
+        run: |
+          mkdir -p src-tauri/cuda-libs
+          cp "$CUDA_PATH/lib64/libcublas.so"* src-tauri/cuda-libs/ || true
+          cp "$CUDA_PATH/lib64/libcublasLt.so"* src-tauri/cuda-libs/ || true
+          cp "$CUDA_PATH/lib64/libcudart.so"* src-tauri/cuda-libs/ || true
+          ls -lh src-tauri/cuda-libs/
+
+      - name: Configure GPU resource bundling
+        run: |
+          jq '.bundle.resources = ["cuda-libs/*"]' src-tauri/tauri.conf.json > tmp.json
+          mv tmp.json src-tauri/tauri.conf.json
 
       - name: Build GPU version
         env:
