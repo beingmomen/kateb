@@ -110,3 +110,12 @@ This file documents issues encountered during development and their solutions.
 **Solution**: Added `release-linux-gpu` job that builds with `--features cuda`, renames `.deb`/`.AppImage` artifacts to `kateb-gpu_*`, and uploads alongside CPU artifacts
 **Files Modified**: `.github/workflows/release.yml`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`
 **Prevention**: When adding GPU builds, cover all target platforms
+
+---
+
+### [2026-02-16] - GPU build jobs fail: missing TAURI_SIGNING_PRIVATE_KEY
+**Problem**: `release-windows-gpu` and `release-linux-gpu` jobs fail with `A public key has been found, but no private key`
+**Root Cause**: GPU jobs use `pnpm tauri build` directly instead of `tauri-action`, but `tauri.conf.json` has `createUpdaterArtifacts: true` with a pubkey, so Tauri requires the signing key to create updater artifacts
+**Solution**: Added `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` env vars to the "Build GPU version" step in both GPU jobs
+**Files Modified**: `.github/workflows/release.yml`
+**Prevention**: When using `pnpm tauri build` directly (outside `tauri-action`), always pass the same env vars that `tauri-action` uses
