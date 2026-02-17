@@ -7,22 +7,61 @@ on:
   workflow_dispatch:
 
 jobs:
-  release:
+  create-release:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    outputs:
+      release_id: ${{ steps.create.outputs.result }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get version from tag
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Create draft release
+        id: create
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data } = await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: `v${{ steps.version.outputs.version }}`,
+              name: `Kateb v${{ steps.version.outputs.version }}`,
+              body: `## كاتِب v${{ steps.version.outputs.version }}\n\nتطبيق إملاء صوتي ذكي بالعربية والإنجليزية.\n\n### التنزيل\n- **Windows**: \`Kateb_${{ steps.version.outputs.version }}_x64-setup.exe\`\n- **Linux**: \`.deb\` أو \`.AppImage\``,
+              draft: true,
+              prerelease: false
+            })
+            return data.id
+
+  build:
+    needs: create-release
     permissions:
       contents: write
 
-    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: ubuntu-22.04
+          - platform: windows-latest
+
+    runs-on: ${{ matrix.platform }}
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install CUDA toolkit
+      - name: Install CUDA toolkit (Linux)
+        if: matrix.platform == 'ubuntu-22.04'
         uses: Jimver/cuda-toolkit@v0.2.30
         with:
           cuda: '12.6.3'
           method: 'network'
 
-      - name: Install system dependencies
+      - name: Install system dependencies (Linux)
+        if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -60,17 +99,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          CFLAGS: '-march=x86-64-v3'
-          CXXFLAGS: '-march=x86-64-v3'
+          CFLAGS: ${{ matrix.platform == 'ubuntu-22.04' && '-march=x86-64-v3' || '' }}
+          CXXFLAGS: ${{ matrix.platform == 'ubuntu-22.04' && '-march=x86-64-v3' || '' }}
         with:
-          tagName: v__VERSION__
-          releaseName: 'Kateb v__VERSION__'
-          releaseBody: |
-            ## كاتِب v__VERSION__
-
-            تطبيق إملاء صوتي ذكي بالعربية والإنجليزية.
-
-            ### التنزيل
-            - **Linux**: `.deb` أو `.AppImage`
-          releaseDraft: true
-          prerelease: false
+          releaseId: ${{ needs.create-release.outputs.release_id }}
+          args: ${{ matrix.platform == 'windows-latest' && '-- --no-default-features' || '' }}
