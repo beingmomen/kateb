@@ -55,6 +55,7 @@ pub struct DictationState {
     pub streaming_thread: Mutex<Option<std::thread::JoinHandle<()>>>,
     pub accumulated_text: Arc<Mutex<Vec<String>>>,
     pub vad: Arc<Mutex<AdaptiveVAD>>,
+    pub last_processed_pos: Arc<Mutex<usize>>,
 }
 
 fn clean_trailing_hallucinations(text: &str) -> String {
@@ -134,13 +135,18 @@ fn emit_status(app: &tauri::AppHandle, is_recording: bool, is_processing: bool) 
 }
 
 fn streaming_transcription_loop(streaming_active: Arc<AtomicBool>, app: tauri::AppHandle) {
-    let mut last_processed_pos: usize = 0;
+    let mut local_processed_pos: usize = 0;
     let mut last_vad_pos: usize = 0;
     let mut chunk_index: u32 = 0;
 
     tracing::debug!("[streaming] Loop started");
 
     let state: tauri::State<'_, DictationState> = app.state();
+
+    {
+        let mut pos = state.last_processed_pos.lock().unwrap();
+        *pos = 0;
+    }
 
     {
         let mut vad = state.vad.lock().unwrap();
@@ -185,14 +191,13 @@ fn streaming_transcription_loop(streaming_active: Arc<AtomicBool>, app: tauri::A
 
         let _ = app.emit("audio-level", serde_json::json!({ "level": audio_level }));
 
-        let new_samples = current_len.saturating_sub(last_processed_pos);
+        let new_samples = current_len.saturating_sub(local_processed_pos);
         if new_samples < CHUNK_SAMPLES {
             let new_vad_samples = current_len.saturating_sub(last_vad_pos);
             if new_vad_samples > 0 {
                 let recent_audio = {
                     let recorder = state.recorder.lock().unwrap();
-                    let full_buffer = recorder.get_buffer_snapshot();
-                    full_buffer[last_vad_pos..current_len.min(full_buffer.len())].to_vec()
+                    recorder.get_buffer_range(last_vad_pos, current_len)
                 };
                 last_vad_pos = current_len;
                 let mut vad = state.vad.lock().unwrap();
@@ -215,16 +220,15 @@ fn streaming_transcription_loop(streaming_active: Arc<AtomicBool>, app: tauri::A
             continue;
         }
 
-        let chunk_start = if last_processed_pos > OVERLAP_SAMPLES {
-            last_processed_pos - OVERLAP_SAMPLES
+        let chunk_start = if local_processed_pos > OVERLAP_SAMPLES {
+            local_processed_pos - OVERLAP_SAMPLES
         } else {
             0
         };
 
         let chunk_audio = {
             let recorder = state.recorder.lock().unwrap();
-            let full_buffer = recorder.get_buffer_snapshot();
-            full_buffer[chunk_start..current_len.min(full_buffer.len())].to_vec()
+            recorder.get_buffer_range(chunk_start, current_len)
         };
 
         if chunk_audio.is_empty() {
@@ -238,7 +242,8 @@ fn streaming_transcription_loop(streaming_active: Arc<AtomicBool>, app: tauri::A
 
             if !is_speech {
                 tracing::debug!("[streaming] VAD: no speech detected, skipping chunk");
-                last_processed_pos = current_len;
+                local_processed_pos = current_len;
+                *state.last_processed_pos.lock().unwrap() = current_len;
 
                 if auto_stop_enabled.0 && recording_start.elapsed().as_secs_f32() > 5.0 {
                     let silence_dur = vad.silence_duration_secs();
@@ -280,7 +285,8 @@ fn streaming_transcription_loop(streaming_active: Arc<AtomicBool>, app: tauri::A
                 Ok(t) => t,
                 Err(e) => {
                     tracing::error!("[streaming] Chunk transcription error: {}", e);
-                    last_processed_pos = current_len;
+                    local_processed_pos = current_len;
+                    *state.last_processed_pos.lock().unwrap() = current_len;
                     continue;
                 }
             }
@@ -290,7 +296,8 @@ fn streaming_transcription_loop(streaming_active: Arc<AtomicBool>, app: tauri::A
             break;
         }
 
-        last_processed_pos = current_len;
+        local_processed_pos = current_len;
+        *state.last_processed_pos.lock().unwrap() = current_len;
         chunk_index += 1;
 
         let chunk_duration = chunk_audio.len() as f32 / SAMPLE_RATE as f32;
@@ -566,6 +573,11 @@ pub async fn start_dictation(
     }
 
     {
+        let mut pos = state.last_processed_pos.lock().map_err(|e| e.to_string())?;
+        *pos = 0;
+    }
+
+    {
         let conn = db.0.lock().map_err(|e| e.to_string())?;
         let lang = conn
             .query_row(
@@ -628,6 +640,10 @@ pub async fn stop_dictation(
 
     stop_streaming_thread(&state).await?;
 
+    let last_raw_pos = {
+        *state.last_processed_pos.lock().map_err(|e| e.to_string())?
+    };
+
     let (audio_data, duration) = capture_audio(&state)?;
 
     if audio_data.is_empty() {
@@ -642,25 +658,84 @@ pub async fn stop_dictation(
         return Ok(String::new());
     }
 
-    let speech_ratio = {
-        let vad = state.vad.lock().map_err(|e| e.to_string())?;
-        vad.speech_ratio()
+    let accumulated = {
+        let acc = state.accumulated_text.lock().map_err(|e| e.to_string())?;
+        acc.join(" ")
     };
 
-    tracing::debug!("[dictation] Running full transcription on complete audio ({} samples, {:.1}s, speech_ratio={:.1}%)",
-        audio_data.len(), audio_data.len() as f64 / SAMPLE_RATE as f64, speech_ratio * 100.0);
-    let text = match transcribe_audio(&state, &audio_data) {
-        Ok(t) => t,
-        Err(e) => {
-            let mut is_processing = state
-                .is_processing
-                .lock()
-                .map_err(|_| "lock error".to_string())?;
-            *is_processing = false;
-            emit_status(&app, false, false);
-            hide_overlay_window(&app);
-            return Err(e);
+    let text = if accumulated.trim().is_empty() {
+        tracing::debug!("[dictation] No accumulated streaming text, falling back to full transcription");
+        let speech_ratio = {
+            let vad = state.vad.lock().map_err(|e| e.to_string())?;
+            vad.speech_ratio()
+        };
+        tracing::debug!("[dictation] Running full transcription on complete audio ({} samples, {:.1}s, speech_ratio={:.1}%)",
+            audio_data.len(), audio_data.len() as f64 / SAMPLE_RATE as f64, speech_ratio * 100.0);
+        match transcribe_audio(&state, &audio_data) {
+            Ok(t) => t,
+            Err(e) => {
+                let mut is_processing = state
+                    .is_processing
+                    .lock()
+                    .map_err(|_| "lock error".to_string())?;
+                *is_processing = false;
+                emit_status(&app, false, false);
+                hide_overlay_window(&app);
+                return Err(e);
+            }
         }
+    } else {
+        let (actual_rate, actual_channels) = {
+            let recorder = state.recorder.lock().map_err(|e| e.to_string())?;
+            (recorder.get_actual_sample_rate(), recorder.get_actual_channels())
+        };
+
+        let mono_pos = last_raw_pos / actual_channels.max(1) as usize;
+        let converted_pos = if actual_rate != SAMPLE_RATE {
+            (mono_pos as f64 * SAMPLE_RATE as f64 / actual_rate as f64) as usize
+        } else {
+            mono_pos
+        };
+        let converted_pos = converted_pos.min(audio_data.len());
+        let remaining_samples = audio_data.len().saturating_sub(converted_pos);
+
+        tracing::debug!(
+            "[dictation] Using accumulated streaming text ({} chars), tail: {} samples ({:.1}s)",
+            accumulated.len(),
+            remaining_samples,
+            remaining_samples as f64 / SAMPLE_RATE as f64
+        );
+
+        let tail_text = if remaining_samples > CHUNK_SAMPLES / 2 {
+            let tail_audio = &audio_data[converted_pos..];
+            let processed_tail = AudioPreprocessor::process(tail_audio);
+            match transcribe_audio(&state, &processed_tail) {
+                Ok(t) if !t.trim().is_empty() => {
+                    let tail_duration = tail_audio.len() as f32 / SAMPLE_RATE as f32;
+                    if !is_chunk_hallucination(&t, tail_duration) {
+                        tracing::debug!("[dictation] Tail transcription: '{}'", t.trim());
+                        Some(t.trim().to_string())
+                    } else {
+                        tracing::debug!("[dictation] Tail was hallucination, skipping");
+                        None
+                    }
+                }
+                Ok(_) => None,
+                Err(e) => {
+                    tracing::warn!("[dictation] Tail transcription failed: {}", e);
+                    None
+                }
+            }
+        } else {
+            tracing::debug!("[dictation] No significant tail to transcribe");
+            None
+        };
+
+        let mut parts = vec![accumulated.trim().to_string()];
+        if let Some(tail) = tail_text {
+            parts.push(tail);
+        }
+        parts.join(" ")
     };
 
     let cleaned_text = clean_trailing_hallucinations(&text);

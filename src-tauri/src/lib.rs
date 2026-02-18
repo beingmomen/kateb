@@ -285,6 +285,7 @@ pub fn run() {
                 streaming_thread: Mutex::new(None),
                 accumulated_text: Arc::new(Mutex::new(Vec::new())),
                 vad: Arc::new(Mutex::new(audio::vad::AdaptiveVAD::new())),
+                last_processed_pos: Arc::new(Mutex::new(0)),
             });
 
             let handle = app.handle().clone();

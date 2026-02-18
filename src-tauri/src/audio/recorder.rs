@@ -238,6 +238,21 @@ impl AudioRecorder {
         buf.len()
     }
 
+    pub fn get_buffer_range(&self, start: usize, end: usize) -> Vec<f32> {
+        let buf = self.buffer.lock().unwrap();
+        let end = end.min(buf.len());
+        let start = start.min(end);
+        buf[start..end].to_vec()
+    }
+
+    pub fn get_actual_sample_rate(&self) -> u32 {
+        *self.actual_sample_rate.lock().unwrap()
+    }
+
+    pub fn get_actual_channels(&self) -> u16 {
+        *self.actual_channels.lock().unwrap()
+    }
+
     pub fn get_audio_level(&self) -> f32 {
         let buf = self.buffer.lock().unwrap();
         if buf.is_empty() {
