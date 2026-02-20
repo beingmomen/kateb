@@ -4,6 +4,11 @@ All notable changes to Kateb will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.3.1] - 2026-02-20
+
+### Fixed
+- Updater "Cannot read private member" error caused by Vue Proxy wrapping Tauri updater objects with private class fields
+
 ## [1.3.0] - 2026-02-20
 
 ### Added
