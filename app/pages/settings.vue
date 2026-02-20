@@ -948,7 +948,9 @@ async function handleSave() {
                 />
                 <span>{{ $t('settings.vcExample') }}</span>
               </div>
-              <div class="bg-white/50 dark:bg-gray-800/50 rounded px-3 py-2 font-mono text-xs whitespace-pre-line">{{ $t('settings.vcExampleResult') }}</div>
+              <div class="bg-white/50 dark:bg-gray-800/50 rounded px-3 py-2 font-mono text-xs whitespace-pre-line">
+                {{ $t('settings.vcExampleResult') }}
+              </div>
             </div>
           </div>
         </UCard>

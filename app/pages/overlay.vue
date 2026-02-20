@@ -124,7 +124,7 @@ watch(isProcessing, (val) => {
           clearInterval(safetyTimer)
           safetyTimer = null
         }
-      } catch {}
+      } catch { /* ignore */ }
     }, 5000)
   } else {
     if (safetyTimer) {
@@ -182,7 +182,10 @@ onUnmounted(() => {
   stopDurationTimer()
   stopProcessingTimer()
   stopRefiningTimer()
-  if (safetyTimer) { clearInterval(safetyTimer); safetyTimer = null }
+  if (safetyTimer) {
+    clearInterval(safetyTimer)
+    safetyTimer = null
+  }
 })
 </script>
 

@@ -4,6 +4,22 @@ All notable changes to Kateb will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.3.0] - 2026-02-20
+
+### Added
+- Voice commands: 8 commands (new line, paragraph, period, comma, question mark, exclamation, space, delete) supporting Arabic and English
+- Voice commands guide in settings page with examples and tips (shown when enabled)
+- Noise suppression module for audio preprocessing (experimental)
+- Custom vocabulary support for improved speech recognition
+- Frontend safety mechanisms: 45s processing timeout, backend status polling, toggle guards
+
+### Fixed
+- UTF-8 boundary panic in voice command processing for Arabic text
+- Frontend stuck in "processing" state when backend panics
+
+### Changed
+- Moved documentation files to `docs/` directory
+
 ## [1.0.9] - 2026-02-12
 
 ### Added

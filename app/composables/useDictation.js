@@ -242,7 +242,7 @@ export function useDictation() {
             clearInterval(safetyPollTimer)
             safetyPollTimer = null
           }
-        } catch {}
+        } catch { /* ignore */ }
       }, 5000)
     } else {
       if (safetyPollTimer) {
@@ -256,7 +256,10 @@ export function useDictation() {
     stopDurationTimer()
     stopProcessingTimer()
     stopRefiningTimer()
-    if (safetyPollTimer) { clearInterval(safetyPollTimer); safetyPollTimer = null }
+    if (safetyPollTimer) {
+      clearInterval(safetyPollTimer)
+      safetyPollTimer = null
+    }
     if (unlistenStatus) unlistenStatus()
     if (unlistenResult) unlistenResult()
     if (unlistenToggle) unlistenToggle()
