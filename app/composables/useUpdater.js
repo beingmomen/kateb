@@ -10,7 +10,7 @@ export function useUpdater() {
   const downloadedBytes = ref(0)
   const totalBytes = ref(0)
   const error = ref('')
-  const updateInstance = ref(null)
+  let updateInstance = null
   const appVersion = ref('')
 
   async function loadAppVersion() {
@@ -40,10 +40,10 @@ export function useUpdater() {
         updateAvailable.value = true
         updateVersion.value = update.version
         updateBody.value = update.body || ''
-        updateInstance.value = update
+        updateInstance = update
       } else {
         updateAvailable.value = false
-        updateInstance.value = null
+        updateInstance = null
       }
     } catch (e) {
       console.warn('[updater] Check failed:', e)
@@ -58,7 +58,7 @@ export function useUpdater() {
     updateVersion.value = ''
     updateBody.value = ''
     error.value = ''
-    updateInstance.value = null
+    updateInstance = null
     await checkForUpdates()
   }
 
@@ -71,7 +71,7 @@ export function useUpdater() {
   }
 
   async function downloadAndInstall() {
-    if (!updateInstance.value) return
+    if (!updateInstance) return
 
     isDownloading.value = true
     downloadProgress.value = 0
@@ -82,7 +82,7 @@ export function useUpdater() {
     try {
       let downloaded = 0
 
-      await updateInstance.value.downloadAndInstall((event) => {
+      await updateInstance.downloadAndInstall((event) => {
         switch (event.event) {
           case 'Started':
             totalBytes.value = event.data.contentLength || 0
@@ -112,7 +112,7 @@ export function useUpdater() {
 
   function dismiss() {
     updateAvailable.value = false
-    updateInstance.value = null
+    updateInstance = null
     error.value = ''
   }
 
