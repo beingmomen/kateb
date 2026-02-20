@@ -32,7 +32,7 @@ This project uses **Nuxt UI**. You MUST use the MCP template setup to create the
 1. Run: `/nuxt-ui-remote:setup_project_with_template`
 2. Select the **Dashboard** template
 3. After setup completes, copy the downloaded files (CLAUDE.md, fix.md, .env.example) to the project root
-4. Then proceed with implementing the specification in project-spec.md
+4. Then proceed with implementing the specification in docs/project-spec.md
 
 > **WARNING**: DO NOT manually create nuxt.config.ts, package.json, or install Nuxt/Nuxt UI manually.
 > The MCP template handles all of this automatically with the correct versions and configuration.
@@ -125,7 +125,7 @@ Do NOT rely on training data — component APIs change between versions.
 - **MCP FIRST**: Follow the MCP FIRST checklist above — query MCP servers before creating ANY file, do NOT rely on training data for framework APIs
 - **README**: After project setup is complete, create README.md with setup and run instructions
 - **ENV VARIABLES**: Never duplicate environment variables between global and local .env files
-- **FIX LOG**: Document all issues and their solutions in fix.md
+- **FIX LOG**: Document all issues and their solutions in docs/fix.md
 
 ### TypeScript Mode
 - Use JavaScript in Vue components
@@ -158,7 +158,7 @@ Do NOT rely on training data — component APIs change between versions.
 
 ## 📝 fix.md Usage
 
-When solving ANY issue during development, log it immediately in fix.md:
+When solving ANY issue during development, log it immediately in docs/fix.md:
 
 ```markdown
 ### [YYYY-MM-DD] - Issue Title

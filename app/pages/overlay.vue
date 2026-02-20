@@ -94,6 +94,46 @@ async function hideOverlay() {
   await tauriInvoke('hide_overlay')
 }
 
+let safetyTimer = null
+
+watch(isProcessing, (val) => {
+  if (val) {
+    const startTime = Date.now()
+    safetyTimer = setInterval(async () => {
+      if (!isProcessing.value) {
+        clearInterval(safetyTimer)
+        safetyTimer = null
+        return
+      }
+      if (Date.now() - startTime > 60000) {
+        isProcessing.value = false
+        isRefining.value = false
+        stopProcessingTimer()
+        stopRefiningTimer()
+        clearInterval(safetyTimer)
+        safetyTimer = null
+        return
+      }
+      try {
+        const status = await tauriInvoke('get_dictation_status')
+        if (status && !status.is_recording && !status.is_processing) {
+          isProcessing.value = false
+          isRefining.value = false
+          stopProcessingTimer()
+          stopRefiningTimer()
+          clearInterval(safetyTimer)
+          safetyTimer = null
+        }
+      } catch {}
+    }, 5000)
+  } else {
+    if (safetyTimer) {
+      clearInterval(safetyTimer)
+      safetyTimer = null
+    }
+  }
+})
+
 onMounted(async () => {
   try {
     const { getCurrentWindow } = await import('@tauri-apps/api/window')
@@ -142,6 +182,7 @@ onUnmounted(() => {
   stopDurationTimer()
   stopProcessingTimer()
   stopRefiningTimer()
+  if (safetyTimer) { clearInterval(safetyTimer); safetyTimer = null }
 })
 </script>
 

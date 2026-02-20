@@ -5,3 +5,4 @@ pub mod dictation;
 pub mod history;
 pub mod models;
 pub mod settings;
+pub mod voice_commands;

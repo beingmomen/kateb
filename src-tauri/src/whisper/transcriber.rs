@@ -4,6 +4,7 @@ use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextPar
 pub struct WhisperTranscriber {
     ctx: Option<WhisperContext>,
     language: String,
+    custom_vocabulary: String,
 }
 
 impl WhisperTranscriber {
@@ -11,6 +12,7 @@ impl WhisperTranscriber {
         Self {
             ctx: None,
             language: "ar".to_string(),
+            custom_vocabulary: String::new(),
         }
     }
 
@@ -34,7 +36,11 @@ impl WhisperTranscriber {
         self.language = lang.to_string();
     }
 
-    fn apply_anti_hallucination(params: &mut FullParams, language: &str) {
+    pub fn set_custom_vocabulary(&mut self, vocab: &str) {
+        self.custom_vocabulary = vocab.to_string();
+    }
+
+    fn apply_anti_hallucination(params: &mut FullParams, language: &str, custom_vocab: &str) {
         params.set_suppress_blank(true);
         params.set_suppress_nst(true);
         params.set_no_speech_thold(0.6);
@@ -42,11 +48,16 @@ impl WhisperTranscriber {
         params.set_logprob_thold(-1.0);
         params.set_temperature(0.0);
         params.set_temperature_inc(0.0);
-        let initial_prompt = match language {
+        let base_prompt = match language {
             "en" => "Voice dictation in English. The text contains complete sentences with proper punctuation. No songs, music, or subtitles.",
             _ => "إملاء صوتي باللغة العربية الفصحى والعامية. النص يحتوي على جمل كاملة مع علامات ترقيم صحيحة، ولا يحتوي على أناشيد أو موسيقى أو ترجمات.",
         };
-        params.set_initial_prompt(initial_prompt);
+        let initial_prompt = if custom_vocab.trim().is_empty() {
+            base_prompt.to_string()
+        } else {
+            format!("{} {}", base_prompt, custom_vocab.trim())
+        };
+        params.set_initial_prompt(&initial_prompt);
     }
 
     pub fn transcribe(&self, audio_data: &[f32]) -> Result<String, anyhow::Error> {
@@ -68,7 +79,7 @@ impl WhisperTranscriber {
         params.set_print_progress(true);
         params.set_print_realtime(false);
         params.set_print_special(false);
-        Self::apply_anti_hallucination(&mut params, &self.language);
+        Self::apply_anti_hallucination(&mut params, &self.language, &self.custom_vocabulary);
 
         tracing::debug!("[whisper] Running transcription (language: {})...", self.language);
         let start = std::time::Instant::now();
@@ -112,7 +123,7 @@ impl WhisperTranscriber {
         params.set_print_realtime(false);
         params.set_print_special(false);
         params.set_no_context(true);
-        Self::apply_anti_hallucination(&mut params, &self.language);
+        Self::apply_anti_hallucination(&mut params, &self.language, &self.custom_vocabulary);
 
         state
             .full(params, audio_chunk)

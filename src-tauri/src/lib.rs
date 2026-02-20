@@ -286,6 +286,8 @@ pub fn run() {
                 accumulated_text: Arc::new(Mutex::new(Vec::new())),
                 vad: Arc::new(Mutex::new(audio::vad::AdaptiveVAD::new())),
                 last_processed_pos: Arc::new(Mutex::new(0)),
+                noise_suppressor: Mutex::new(audio::noise_suppressor::NoiseSuppressor::new(false)),
+                voice_commands: Mutex::new(commands::voice_commands::VoiceCommandProcessor::new(true)),
             });
 
             let handle = app.handle().clone();

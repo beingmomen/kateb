@@ -53,7 +53,10 @@ const form = reactive({
   local_api_url: '',
   use_gpu: false,
   auto_stop_silence: false,
-  auto_stop_seconds: 10
+  auto_stop_seconds: 10,
+  custom_vocabulary: '',
+  noise_suppression: false,
+  voice_commands: true
 })
 
 const original = reactive({ ...form })
@@ -91,6 +94,11 @@ function loadFormFromSettings() {
   const autoStopVal = getSettingValue('auto_stop_silence', false)
   form.auto_stop_silence = autoStopVal === true || autoStopVal === 'true'
   form.auto_stop_seconds = Number(getSettingValue('auto_stop_seconds', 10))
+  form.custom_vocabulary = getSettingValue('custom_vocabulary', '')
+  const noiseSup = getSettingValue('noise_suppression', true)
+  form.noise_suppression = noiseSup === true || noiseSup === 'true'
+  const voiceCmd = getSettingValue('voice_commands', true)
+  form.voice_commands = voiceCmd === true || voiceCmd === 'true'
   Object.assign(original, form)
   original._actualShortcut = form.shortcut === 'custom' ? customShortcutDisplay.value : form.shortcut
 }
@@ -370,7 +378,10 @@ async function handleSave() {
       local_api_url: form.local_api_url,
       use_gpu: String(form.use_gpu),
       auto_stop_silence: String(form.auto_stop_silence),
-      auto_stop_seconds: String(form.auto_stop_seconds)
+      auto_stop_seconds: String(form.auto_stop_seconds),
+      custom_vocabulary: form.custom_vocabulary,
+      noise_suppression: String(form.noise_suppression),
+      voice_commands: String(form.voice_commands)
     }
 
     for (const [key, value] of Object.entries(settingsMap)) {
@@ -559,6 +570,30 @@ async function handleSave() {
           <template #header>
             <div class="flex items-center gap-2">
               <UIcon
+                name="i-lucide-book-open"
+                class="size-5"
+              />
+              <span class="font-semibold">{{ $t('settings.vocabSection') }}</span>
+            </div>
+          </template>
+          <div class="space-y-4">
+            <UFormField :label="$t('settings.vocabLabel')">
+              <UTextarea
+                v-model="form.custom_vocabulary"
+                :placeholder="$t('settings.vocabPlaceholder')"
+                :rows="3"
+              />
+              <p class="text-xs text-muted mt-1">
+                {{ $t('settings.vocabHint') }}
+              </p>
+            </UFormField>
+          </div>
+        </UCard>
+
+        <UCard>
+          <template #header>
+            <div class="flex items-center gap-2">
+              <UIcon
                 name="i-lucide-cpu"
                 class="size-5"
               />
@@ -602,6 +637,20 @@ async function handleSave() {
                 class="size-4 mt-0.5 shrink-0"
               />
               <span>{{ $t('settings.gpuEnabled') }}</span>
+            </div>
+
+            <USeparator />
+
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="font-medium">
+                  {{ $t('settings.noiseSuppression') }}
+                </p>
+                <p class="text-sm text-muted">
+                  {{ $t('settings.noiseSuppressionDesc') }}
+                </p>
+              </div>
+              <USwitch v-model="form.noise_suppression" />
             </div>
           </div>
         </UCard>
@@ -696,6 +745,211 @@ async function handleSave() {
                 value-key="value"
               />
             </UFormField>
+
+            <USeparator />
+
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="font-medium">
+                  {{ $t('settings.voiceCommands') }}
+                </p>
+                <p class="text-sm text-muted">
+                  {{ $t('settings.voiceCommandsDesc') }}
+                </p>
+              </div>
+              <USwitch v-model="form.voice_commands" />
+            </div>
+          </div>
+        </UCard>
+
+        <UCard v-if="form.voice_commands">
+          <template #header>
+            <div class="flex items-center gap-2">
+              <UIcon
+                name="i-lucide-terminal"
+                class="size-5"
+              />
+              <span class="font-semibold">{{ $t('settings.vcGuideTitle') }}</span>
+            </div>
+          </template>
+
+          <div class="space-y-5">
+            <p class="text-sm text-muted">
+              {{ $t('settings.vcGuideDesc') }}
+            </p>
+
+            <div class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+              <div class="grid grid-cols-[1fr_auto_1fr] bg-gray-50 dark:bg-gray-800 px-4 py-2.5 text-sm font-semibold">
+                <span>{{ $t('settings.vcCommand') }}</span>
+                <span class="text-center px-4">{{ $t('settings.vcSayThis') }}</span>
+                <span class="text-end">{{ $t('settings.vcResult') }}</span>
+              </div>
+
+              <div class="divide-y divide-gray-200 dark:divide-gray-700">
+                <div class="grid grid-cols-[1fr_auto_1fr] px-4 py-3 text-sm items-center">
+                  <div class="flex items-center gap-2">
+                    <UIcon
+                      name="i-lucide-wrap-text"
+                      class="size-4 text-blue-500 shrink-0"
+                    />
+                    <span class="font-medium">{{ $t('settings.vcNewLine') }}</span>
+                  </div>
+                  <UBadge
+                    variant="subtle"
+                    color="neutral"
+                    class="mx-4"
+                  >
+                    {{ $t('settings.vcNewLine') }}
+                  </UBadge>
+                  <span class="text-muted text-end">{{ $t('settings.vcNewLineResult') }}</span>
+                </div>
+
+                <div class="grid grid-cols-[1fr_auto_1fr] px-4 py-3 text-sm items-center">
+                  <div class="flex items-center gap-2">
+                    <UIcon
+                      name="i-lucide-pilcrow"
+                      class="size-4 text-blue-500 shrink-0"
+                    />
+                    <span class="font-medium">{{ $t('settings.vcNewParagraph') }}</span>
+                  </div>
+                  <UBadge
+                    variant="subtle"
+                    color="neutral"
+                    class="mx-4"
+                  >
+                    {{ $t('settings.vcNewParagraph') }}
+                  </UBadge>
+                  <span class="text-muted text-end">{{ $t('settings.vcNewParagraphResult') }}</span>
+                </div>
+
+                <div class="grid grid-cols-[1fr_auto_1fr] px-4 py-3 text-sm items-center">
+                  <div class="flex items-center gap-2">
+                    <UIcon
+                      name="i-lucide-circle-dot"
+                      class="size-4 text-green-500 shrink-0"
+                    />
+                    <span class="font-medium">{{ $t('settings.vcPeriod') }}</span>
+                  </div>
+                  <UBadge
+                    variant="subtle"
+                    color="neutral"
+                    class="mx-4"
+                  >
+                    {{ $t('settings.vcPeriod') }}
+                  </UBadge>
+                  <span class="text-muted text-end">{{ $t('settings.vcPeriodResult') }}</span>
+                </div>
+
+                <div class="grid grid-cols-[1fr_auto_1fr] px-4 py-3 text-sm items-center">
+                  <div class="flex items-center gap-2">
+                    <UIcon
+                      name="i-lucide-comma"
+                      class="size-4 text-green-500 shrink-0"
+                    />
+                    <span class="font-medium">{{ $t('settings.vcComma') }}</span>
+                  </div>
+                  <UBadge
+                    variant="subtle"
+                    color="neutral"
+                    class="mx-4"
+                  >
+                    {{ $t('settings.vcComma') }}
+                  </UBadge>
+                  <span class="text-muted text-end">{{ $t('settings.vcCommaResult') }}</span>
+                </div>
+
+                <div class="grid grid-cols-[1fr_auto_1fr] px-4 py-3 text-sm items-center">
+                  <div class="flex items-center gap-2">
+                    <UIcon
+                      name="i-lucide-circle-help"
+                      class="size-4 text-amber-500 shrink-0"
+                    />
+                    <span class="font-medium">{{ $t('settings.vcQuestion') }}</span>
+                  </div>
+                  <UBadge
+                    variant="subtle"
+                    color="neutral"
+                    class="mx-4"
+                  >
+                    {{ $t('settings.vcQuestion') }}
+                  </UBadge>
+                  <span class="text-muted text-end">{{ $t('settings.vcQuestionResult') }}</span>
+                </div>
+
+                <div class="grid grid-cols-[1fr_auto_1fr] px-4 py-3 text-sm items-center">
+                  <div class="flex items-center gap-2">
+                    <UIcon
+                      name="i-lucide-circle-alert"
+                      class="size-4 text-amber-500 shrink-0"
+                    />
+                    <span class="font-medium">{{ $t('settings.vcExclamation') }}</span>
+                  </div>
+                  <UBadge
+                    variant="subtle"
+                    color="neutral"
+                    class="mx-4"
+                  >
+                    {{ $t('settings.vcExclamation') }}
+                  </UBadge>
+                  <span class="text-muted text-end">{{ $t('settings.vcExclamationResult') }}</span>
+                </div>
+
+                <div class="grid grid-cols-[1fr_auto_1fr] px-4 py-3 text-sm items-center">
+                  <div class="flex items-center gap-2">
+                    <UIcon
+                      name="i-lucide-space"
+                      class="size-4 text-gray-500 shrink-0"
+                    />
+                    <span class="font-medium">{{ $t('settings.vcSpace') }}</span>
+                  </div>
+                  <UBadge
+                    variant="subtle"
+                    color="neutral"
+                    class="mx-4"
+                  >
+                    {{ $t('settings.vcSpace') }}
+                  </UBadge>
+                  <span class="text-muted text-end">{{ $t('settings.vcSpaceResult') }}</span>
+                </div>
+
+                <div class="grid grid-cols-[1fr_auto_1fr] px-4 py-3 text-sm items-center">
+                  <div class="flex items-center gap-2">
+                    <UIcon
+                      name="i-lucide-delete"
+                      class="size-4 text-red-500 shrink-0"
+                    />
+                    <span class="font-medium">{{ $t('settings.vcDelete') }}</span>
+                  </div>
+                  <UBadge
+                    variant="subtle"
+                    color="neutral"
+                    class="mx-4"
+                  >
+                    {{ $t('settings.vcDelete') }}
+                  </UBadge>
+                  <span class="text-muted text-end">{{ $t('settings.vcDeleteResult') }}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-200 p-3 rounded-lg text-sm flex items-start gap-2">
+              <UIcon
+                name="i-lucide-lightbulb"
+                class="size-4 mt-0.5 shrink-0"
+              />
+              <span>{{ $t('settings.vcTip') }}</span>
+            </div>
+
+            <div class="bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-200 p-3 rounded-lg text-sm space-y-2">
+              <div class="flex items-start gap-2">
+                <UIcon
+                  name="i-lucide-message-square-quote"
+                  class="size-4 mt-0.5 shrink-0"
+                />
+                <span>{{ $t('settings.vcExample') }}</span>
+              </div>
+              <div class="bg-white/50 dark:bg-gray-800/50 rounded px-3 py-2 font-mono text-xs whitespace-pre-line">{{ $t('settings.vcExampleResult') }}</div>
+            </div>
           </div>
         </UCard>
 

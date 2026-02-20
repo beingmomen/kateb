@@ -1,7 +1,9 @@
 use crate::ai::AIFactory;
+use crate::audio::noise_suppressor::NoiseSuppressor;
 use crate::audio::preprocessor::AudioPreprocessor;
 use crate::audio::recorder::AudioRecorder;
 use crate::audio::vad::AdaptiveVAD;
+use crate::commands::voice_commands::VoiceCommandProcessor;
 use crate::constants::{audio::*, hallucination::*};
 use crate::db::Database;
 use crate::keyboard::simulator::KeyboardSimulator;
@@ -56,6 +58,8 @@ pub struct DictationState {
     pub accumulated_text: Arc<Mutex<Vec<String>>>,
     pub vad: Arc<Mutex<AdaptiveVAD>>,
     pub last_processed_pos: Arc<Mutex<usize>>,
+    pub noise_suppressor: Mutex<NoiseSuppressor>,
+    pub voice_commands: Mutex<VoiceCommandProcessor>,
 }
 
 fn clean_trailing_hallucinations(text: &str) -> String {
@@ -132,6 +136,12 @@ fn emit_status(app: &tauri::AppHandle, is_recording: bool, is_processing: bool) 
             "is_processing": is_processing
         }),
     );
+}
+
+fn reset_processing(state: &DictationState, app: &tauri::AppHandle) {
+    let mut is_processing = state.is_processing.lock().unwrap_or_else(|e| e.into_inner());
+    *is_processing = false;
+    emit_status(app, false, false);
 }
 
 fn streaming_transcription_loop(streaming_active: Arc<AtomicBool>, app: tauri::AppHandle) {
@@ -270,7 +280,40 @@ fn streaming_transcription_loop(streaming_active: Arc<AtomicBool>, app: tauri::A
             }
         }
 
-        let processed_audio = AudioPreprocessor::process(&chunk_audio);
+        let ns_enabled = state.noise_suppressor.lock().map(|ns| ns.is_enabled()).unwrap_or(false);
+        let denoised_audio = if ns_enabled {
+            tracing::debug!("[streaming] Applying noise suppression to chunk {}...", chunk_index);
+            match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let ns = state.noise_suppressor.lock().unwrap();
+                ns.suppress(&chunk_audio)
+            })) {
+                Ok(audio) => {
+                    let has_nan = audio.iter().any(|v| !v.is_finite());
+                    if has_nan {
+                        tracing::warn!("[streaming] Noise suppression produced NaN/Inf, using raw audio");
+                        chunk_audio.clone()
+                    } else {
+                        tracing::debug!("[streaming] Noise suppression completed OK for chunk {}", chunk_index);
+                        audio
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!("[streaming] Noise suppression panicked: {:?}, using raw audio", e);
+                    chunk_audio.clone()
+                }
+            }
+        } else {
+            chunk_audio.clone()
+        };
+        let processed_audio = AudioPreprocessor::process(&denoised_audio);
+
+        let has_bad = processed_audio.iter().any(|v| !v.is_finite());
+        if has_bad {
+            tracing::warn!("[streaming] Processed audio has NaN/Inf values, skipping chunk {}", chunk_index);
+            local_processed_pos = current_len;
+            *state.last_processed_pos.lock().unwrap() = current_len;
+            continue;
+        }
 
         tracing::debug!(
             "[streaming] Processing chunk {} ({} samples, {:.1}s)",
@@ -422,7 +465,10 @@ async fn refine_with_ai(
     }
 
     let language = {
-        let conn = db.0.lock().unwrap();
+        let conn = match db.0.lock() {
+            Ok(c) => c,
+            Err(_) => return RefinementResult { text: text.to_string(), ai_provider: String::new(), processing_time_ms: 0 },
+        };
         conn.query_row(
             "SELECT value FROM settings WHERE key = 'language'",
             [],
@@ -588,9 +634,40 @@ pub async fn start_dictation(
             .unwrap_or_else(|_| "\"ar\"".to_string())
             .trim_matches('"')
             .to_string();
+        let custom_vocab = conn
+            .query_row(
+                "SELECT value FROM settings WHERE key = 'custom_vocabulary'",
+                [],
+                |row| row.get::<_, String>(0),
+            )
+            .unwrap_or_default();
         let mut transcriber = state.transcriber.lock().map_err(|e| e.to_string())?;
         transcriber.set_language(&lang);
-        tracing::debug!("[dictation] Language set to: {}", lang);
+        transcriber.set_custom_vocabulary(&custom_vocab);
+        tracing::debug!("[dictation] Language set to: {}, custom vocab: {} chars", lang, custom_vocab.len());
+
+        let noise_sup = conn
+            .query_row(
+                "SELECT value FROM settings WHERE key = 'noise_suppression'",
+                [],
+                |row| row.get::<_, String>(0),
+            )
+            .unwrap_or_else(|_| "false".to_string());
+        let mut ns = state.noise_suppressor.lock().map_err(|e| e.to_string())?;
+        ns.set_enabled(noise_sup == "true");
+        tracing::debug!("[dictation] Noise suppression: {}", noise_sup == "true");
+
+        let voice_cmd = conn
+            .query_row(
+                "SELECT value FROM settings WHERE key = 'voice_commands'",
+                [],
+                |row| row.get::<_, String>(0),
+            )
+            .unwrap_or_else(|_| "true".to_string());
+        let mut vc = state.voice_commands.lock().map_err(|e| e.to_string())?;
+        vc.set_enabled(voice_cmd == "true");
+        vc.set_language(&lang);
+        tracing::debug!("[dictation] Voice commands: {}", voice_cmd == "true");
     }
 
     let recorder = state.recorder.lock().map_err(|e| e.to_string())?;
@@ -638,35 +715,43 @@ pub async fn stop_dictation(
     }
     emit_status(&app, false, true);
 
-    stop_streaming_thread(&state).await?;
+    if let Err(e) = stop_streaming_thread(&state).await {
+        tracing::error!("[dictation] Failed to stop streaming thread: {}", e);
+        reset_processing(&state, &app);
+        hide_overlay_window(&app);
+        return Err(e);
+    }
 
     let last_raw_pos = {
-        *state.last_processed_pos.lock().map_err(|e| e.to_string())?
+        *state.last_processed_pos.lock().unwrap_or_else(|e| e.into_inner())
     };
 
-    let (audio_data, duration) = capture_audio(&state)?;
+    let (audio_data, duration) = match capture_audio(&state) {
+        Ok(v) => v,
+        Err(e) => {
+            tracing::error!("[dictation] Failed to capture audio: {}", e);
+            reset_processing(&state, &app);
+            hide_overlay_window(&app);
+            return Err(e);
+        }
+    };
 
     if audio_data.is_empty() {
         tracing::warn!("[dictation] Audio buffer is empty, nothing to transcribe");
-        let mut is_processing = state
-            .is_processing
-            .lock()
-            .map_err(|_| "lock error".to_string())?;
-        *is_processing = false;
-        emit_status(&app, false, false);
+        reset_processing(&state, &app);
         hide_overlay_window(&app);
         return Ok(String::new());
     }
 
     let accumulated = {
-        let acc = state.accumulated_text.lock().map_err(|e| e.to_string())?;
+        let acc = state.accumulated_text.lock().unwrap_or_else(|e| e.into_inner());
         acc.join(" ")
     };
 
     let text = if accumulated.trim().is_empty() {
         tracing::debug!("[dictation] No accumulated streaming text, falling back to full transcription");
         let speech_ratio = {
-            let vad = state.vad.lock().map_err(|e| e.to_string())?;
+            let vad = state.vad.lock().unwrap_or_else(|e| e.into_inner());
             vad.speech_ratio()
         };
         tracing::debug!("[dictation] Running full transcription on complete audio ({} samples, {:.1}s, speech_ratio={:.1}%)",
@@ -674,19 +759,14 @@ pub async fn stop_dictation(
         match transcribe_audio(&state, &audio_data) {
             Ok(t) => t,
             Err(e) => {
-                let mut is_processing = state
-                    .is_processing
-                    .lock()
-                    .map_err(|_| "lock error".to_string())?;
-                *is_processing = false;
-                emit_status(&app, false, false);
+                reset_processing(&state, &app);
                 hide_overlay_window(&app);
                 return Err(e);
             }
         }
     } else {
         let (actual_rate, actual_channels) = {
-            let recorder = state.recorder.lock().map_err(|e| e.to_string())?;
+            let recorder = state.recorder.lock().unwrap_or_else(|e| e.into_inner());
             (recorder.get_actual_sample_rate(), recorder.get_actual_channels())
         };
 
@@ -708,7 +788,33 @@ pub async fn stop_dictation(
 
         let tail_text = if remaining_samples > CHUNK_SAMPLES / 2 {
             let tail_audio = &audio_data[converted_pos..];
-            let processed_tail = AudioPreprocessor::process(tail_audio);
+            let ns_enabled = state.noise_suppressor.lock().map(|ns| ns.is_enabled()).unwrap_or(false);
+            let denoised_tail = if ns_enabled {
+                match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    let ns = state.noise_suppressor.lock().unwrap();
+                    ns.suppress(tail_audio)
+                })) {
+                    Ok(audio) => {
+                        if audio.iter().any(|v| !v.is_finite()) {
+                            tracing::warn!("[dictation] Tail noise suppression produced NaN/Inf, using raw audio");
+                            tail_audio.to_vec()
+                        } else {
+                            audio
+                        }
+                    }
+                    Err(e) => {
+                        tracing::warn!("[dictation] Noise suppression panicked on tail: {:?}, using raw audio", e);
+                        tail_audio.to_vec()
+                    }
+                }
+            } else {
+                tail_audio.to_vec()
+            };
+            let processed_tail = AudioPreprocessor::process(&denoised_tail);
+            if processed_tail.iter().any(|v| !v.is_finite()) {
+                tracing::warn!("[dictation] Processed tail has NaN/Inf, skipping tail transcription");
+                None
+            } else {
             match transcribe_audio(&state, &processed_tail) {
                 Ok(t) if !t.trim().is_empty() => {
                     let tail_duration = tail_audio.len() as f32 / SAMPLE_RATE as f32;
@@ -725,6 +831,7 @@ pub async fn stop_dictation(
                     tracing::warn!("[dictation] Tail transcription failed: {}", e);
                     None
                 }
+            }
             }
         } else {
             tracing::debug!("[dictation] No significant tail to transcribe");
@@ -743,8 +850,32 @@ pub async fn stop_dictation(
         tracing::debug!("[dictation] Cleaned trailing hallucinations: '{}' -> '{}'", text.trim(), cleaned_text);
     }
     let text = cleaned_text;
+    tracing::debug!("[dictation] Text after hallucination cleaning: {} chars", text.len());
+
+    let text = match state.voice_commands.lock() {
+        Ok(vc) => {
+            let lang = match state.transcriber.lock() {
+                Ok(t) => t.get_language(),
+                Err(e) => {
+                    tracing::error!("[dictation] Failed to lock transcriber for language: {}", e);
+                    "ar".to_string()
+                }
+            };
+            let result = vc.process_text(&text, &lang);
+            if result.had_commands {
+                tracing::debug!("[voice_commands] Processed: '{}' -> '{}'", text, result.text);
+            }
+            result.text
+        }
+        Err(e) => {
+            tracing::error!("[dictation] Failed to lock voice_commands: {}", e);
+            text
+        }
+    };
+    tracing::debug!("[dictation] Text after voice commands: {} chars", text.len());
 
     let raw_text = text.clone();
+    tracing::debug!("[dictation] Starting AI refinement...");
     let refinement = match tokio::time::timeout(
         std::time::Duration::from_secs(30),
         refine_with_ai(&text, &db, &app),
@@ -765,25 +896,26 @@ pub async fn stop_dictation(
             }
         }
     };
+    tracing::debug!("[dictation] AI refinement completed");
     let text = refinement.text;
     let ai_provider = refinement.ai_provider;
     let processing_time_ms = refinement.processing_time_ms;
 
-    {
-        let mut is_processing = state.is_processing.lock().map_err(|e| e.to_string())?;
-        *is_processing = false;
-    }
-    emit_status(&app, false, false);
+    reset_processing(&state, &app);
 
     let total_duration = audio_data.len() as f32 / SAMPLE_RATE as f32;
     if !text.trim().is_empty() && !is_chunk_hallucination(&text, total_duration) {
         let save_raw = if ai_provider.is_empty() { "" } else { &raw_text };
-        save_to_history(&state, &db, &text, save_raw, duration, &ai_provider, processing_time_ms)?;
-        auto_type_text(&db, &text)?;
+        if let Err(e) = save_to_history(&state, &db, &text, save_raw, duration, &ai_provider, processing_time_ms) {
+            tracing::error!("[dictation] Failed to save history: {}", e);
+        }
+        if let Err(e) = auto_type_text(&db, &text) {
+            tracing::error!("[dictation] Failed to auto-type: {}", e);
+        }
 
-        let language = {
-            let transcriber = state.transcriber.lock().map_err(|e| e.to_string())?;
-            transcriber.get_language()
+        let language = match state.transcriber.lock() {
+            Ok(t) => t.get_language(),
+            Err(_) => "ar".to_string(),
         };
         emit_final_result(&app, &text, duration, &language);
         hide_overlay_delayed(&app, 3);

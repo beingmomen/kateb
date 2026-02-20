@@ -93,21 +93,27 @@ export function useDictation() {
     startProcessingTimer()
     try {
       error.value = null
-      const text = await tauriInvoke('stop_dictation')
+      const text = await Promise.race([
+        tauriInvoke('stop_dictation'),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Processing timed out')), 45000)
+        )
+      ])
       lastResult.value = text
-      isProcessing.value = false
-      stopProcessingTimer()
       return text
     } catch (e) {
       error.value = e
-      isProcessing.value = false
-      stopProcessingTimer()
     } finally {
+      isProcessing.value = false
+      isRefining.value = false
+      stopProcessingTimer()
+      stopRefiningTimer()
       isStopping.value = false
     }
   }
 
   async function toggleDictation() {
+    if (isProcessing.value || isStopping.value) return
     if (isRecording.value) {
       return await stopDictation()
     } else {
@@ -206,10 +212,51 @@ export function useDictation() {
     })
   })
 
+  let safetyPollTimer = null
+
+  watch(isProcessing, (val) => {
+    if (val) {
+      const startTime = Date.now()
+      safetyPollTimer = setInterval(async () => {
+        if (!isProcessing.value) {
+          clearInterval(safetyPollTimer)
+          safetyPollTimer = null
+          return
+        }
+        if (Date.now() - startTime > 60000) {
+          isProcessing.value = false
+          isRefining.value = false
+          stopProcessingTimer()
+          stopRefiningTimer()
+          clearInterval(safetyPollTimer)
+          safetyPollTimer = null
+          return
+        }
+        try {
+          const status = await tauriInvoke('get_dictation_status')
+          if (status && !status.is_recording && !status.is_processing) {
+            isProcessing.value = false
+            isRefining.value = false
+            stopProcessingTimer()
+            stopRefiningTimer()
+            clearInterval(safetyPollTimer)
+            safetyPollTimer = null
+          }
+        } catch {}
+      }, 5000)
+    } else {
+      if (safetyPollTimer) {
+        clearInterval(safetyPollTimer)
+        safetyPollTimer = null
+      }
+    }
+  })
+
   onUnmounted(() => {
     stopDurationTimer()
     stopProcessingTimer()
     stopRefiningTimer()
+    if (safetyPollTimer) { clearInterval(safetyPollTimer); safetyPollTimer = null }
     if (unlistenStatus) unlistenStatus()
     if (unlistenResult) unlistenResult()
     if (unlistenToggle) unlistenToggle()
