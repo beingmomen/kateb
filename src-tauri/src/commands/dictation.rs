@@ -458,7 +458,9 @@ fn transcribe_audio(
     audio_data: &[f32],
 ) -> Result<String, String> {
     tracing::debug!("[dictation] Starting final Whisper transcription on full audio...");
-    let transcriber = state.transcriber.lock().map_err(|e| e.to_string())?;
+    let transcriber = state.transcriber.try_lock().map_err(|_| {
+        "المحول مشغول حالياً، حاول مرة أخرى".to_string()
+    })?;
     match transcriber.transcribe(audio_data) {
         Ok(t) => {
             tracing::debug!(
@@ -570,9 +572,9 @@ fn save_to_history(
     processing_time_ms: u64,
 ) -> Result<(), String> {
     let conn = db.0.lock().map_err(|e| e.to_string())?;
-    let language = {
-        let transcriber = state.transcriber.lock().map_err(|e| e.to_string())?;
-        transcriber.get_language()
+    let language = match state.transcriber.try_lock() {
+        Ok(t) => t.get_language(),
+        Err(_) => "ar".to_string(),
     };
 
     conn.execute(
@@ -660,6 +662,13 @@ pub async fn start_dictation(
             Ok(Ok(Err(_))) => tracing::warn!("[dictation] Previous thread had panicked"),
             Ok(Err(e)) => tracing::error!("[dictation] Previous thread join error: {}", e),
             Err(_) => tracing::warn!("[dictation] Previous thread cleanup timed out after 5s"),
+        }
+    }
+
+    {
+        let is_processing = state.is_processing.lock().map_err(|e| e.to_string())?;
+        if *is_processing {
+            return Err("المعالجة جارية، انتظر حتى تنتهي".to_string());
         }
     }
 
@@ -806,9 +815,16 @@ pub async fn stop_dictation(
         acc.join(" ")
     };
 
-    let text = if !thread_joined && !accumulated.trim().is_empty() {
-        tracing::warn!("[dictation] Streaming thread still running, using accumulated text only to avoid lock contention");
-        accumulated.trim().to_string()
+    let text = if !thread_joined {
+        if !accumulated.trim().is_empty() {
+            tracing::warn!("[dictation] Thread still running, using accumulated text");
+            accumulated.trim().to_string()
+        } else {
+            tracing::warn!("[dictation] Thread still running, no accumulated text, cannot transcribe (lock held)");
+            reset_processing(&state, &app);
+            hide_overlay_window(&app);
+            return Ok(String::new());
+        }
     } else if accumulated.trim().is_empty() {
         tracing::debug!("[dictation] No accumulated streaming text, falling back to full transcription");
         let speech_ratio = {
@@ -915,10 +931,10 @@ pub async fn stop_dictation(
 
     let text = match state.voice_commands.lock() {
         Ok(vc) => {
-            let lang = match state.transcriber.lock() {
+            let lang = match state.transcriber.try_lock() {
                 Ok(t) => t.get_language(),
-                Err(e) => {
-                    tracing::error!("[dictation] Failed to lock transcriber for language: {}", e);
+                Err(_) => {
+                    tracing::warn!("[dictation] Transcriber locked, using default language for voice commands");
                     "ar".to_string()
                 }
             };
@@ -974,7 +990,7 @@ pub async fn stop_dictation(
             tracing::error!("[dictation] Failed to auto-type: {}", e);
         }
 
-        let language = match state.transcriber.lock() {
+        let language = match state.transcriber.try_lock() {
             Ok(t) => t.get_language(),
             Err(_) => "ar".to_string(),
         };
