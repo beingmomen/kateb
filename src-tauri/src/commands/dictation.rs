@@ -413,23 +413,24 @@ async fn stop_streaming_thread(state: &State<'_, DictationState>) -> Result<bool
         thread_handle.take()
     };
     if let Some(h) = handle {
-        let join_future = tokio::task::spawn_blocking(move || h.join());
-        match tokio::time::timeout(std::time::Duration::from_secs(15), join_future).await {
-            Ok(Ok(Ok(_))) => {
-                tracing::debug!("[dictation] Streaming thread joined successfully");
-                return Ok(true);
+        let start = std::time::Instant::now();
+        let timeout = std::time::Duration::from_secs(15);
+
+        while !h.is_finished() {
+            if start.elapsed() >= timeout {
+                tracing::warn!("[dictation] Streaming thread join timed out after 15s, putting handle back");
+                let mut thread_handle = state.streaming_thread.lock().unwrap_or_else(|e| e.into_inner());
+                *thread_handle = Some(h);
+                return Ok(false);
             }
-            Ok(Ok(Err(_))) => {
-                tracing::warn!("[dictation] Streaming thread panicked");
-                return Ok(true);
-            }
-            Ok(Err(e)) => {
-                tracing::error!("[dictation] Thread join task error: {}", e);
-            }
-            Err(_) => {
-                tracing::warn!("[dictation] Streaming thread join timed out after 15s, proceeding");
-            }
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
         }
+
+        match h.join() {
+            Ok(_) => tracing::debug!("[dictation] Streaming thread joined successfully"),
+            Err(_) => tracing::warn!("[dictation] Streaming thread panicked"),
+        }
+        return Ok(true);
     }
     Ok(false)
 }
@@ -458,21 +459,29 @@ fn transcribe_audio(
     audio_data: &[f32],
 ) -> Result<String, String> {
     tracing::debug!("[dictation] Starting final Whisper transcription on full audio...");
-    let transcriber = state.transcriber.try_lock().map_err(|_| {
-        "المحول مشغول حالياً، حاول مرة أخرى".to_string()
-    })?;
-    match transcriber.transcribe(audio_data) {
-        Ok(t) => {
-            tracing::debug!(
-                "[dictation] Transcription complete: '{}' ({} chars)",
-                t,
-                t.len()
-            );
-            Ok(t)
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let transcriber = state.transcriber.try_lock().map_err(|_| {
+            "المحول مشغول حالياً، حاول مرة أخرى".to_string()
+        })?;
+        match transcriber.transcribe(audio_data) {
+            Ok(t) => {
+                tracing::debug!(
+                    "[dictation] Transcription complete: '{}' ({} chars)",
+                    t,
+                    t.len()
+                );
+                Ok(t)
+            }
+            Err(e) => {
+                tracing::error!("[dictation] ERROR in transcription: {}", e);
+                Err(e.to_string())
+            }
         }
+    })) {
+        Ok(result) => result,
         Err(e) => {
-            tracing::error!("[dictation] ERROR in transcription: {}", e);
-            Err(e.to_string())
+            tracing::error!("[dictation] Whisper panicked during full transcription: {:?}", e);
+            Err("حدث خطأ في المحول أثناء المعالجة".to_string())
         }
     }
 }
@@ -655,13 +664,26 @@ pub async fn start_dictation(
         thread_handle.take()
     };
     if let Some(h) = old_handle {
-        tracing::warn!("[dictation] Cleaning up previous streaming thread");
-        let join_result = tokio::task::spawn_blocking(move || h.join());
-        match tokio::time::timeout(std::time::Duration::from_secs(5), join_result).await {
-            Ok(Ok(Ok(_))) => tracing::debug!("[dictation] Previous thread cleaned up"),
-            Ok(Ok(Err(_))) => tracing::warn!("[dictation] Previous thread had panicked"),
-            Ok(Err(e)) => tracing::error!("[dictation] Previous thread join error: {}", e),
-            Err(_) => tracing::warn!("[dictation] Previous thread cleanup timed out after 5s"),
+        tracing::warn!("[dictation] Found previous streaming thread, cleaning up...");
+        let mut finished = h.is_finished();
+        if !finished {
+            let start = std::time::Instant::now();
+            while start.elapsed() < std::time::Duration::from_secs(5) {
+                if h.is_finished() {
+                    finished = true;
+                    break;
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+            }
+        }
+        if finished {
+            let _ = h.join();
+            tracing::debug!("[dictation] Previous thread cleaned up");
+        } else {
+            tracing::error!("[dictation] Previous thread still running after 5s, cannot start safely");
+            let mut thread_handle = state.streaming_thread.lock().unwrap_or_else(|e| e.into_inner());
+            *thread_handle = Some(h);
+            return Err("المعالجة السابقة لم تنتهِ بعد، حاول مرة أخرى بعد قليل".to_string());
         }
     }
 
@@ -705,7 +727,9 @@ pub async fn start_dictation(
                 |row| row.get::<_, String>(0),
             )
             .unwrap_or_default();
-        let mut transcriber = state.transcriber.lock().map_err(|e| e.to_string())?;
+        let mut transcriber = state.transcriber.try_lock().map_err(|_| {
+            "المحول مشغول حالياً بمعالجة سابقة، حاول بعد قليل".to_string()
+        })?;
         transcriber.set_language(&lang);
         transcriber.set_custom_vocabulary(&custom_vocab);
         tracing::debug!("[dictation] Language set to: {}, custom vocab: {} chars", lang, custom_vocab.len());
@@ -734,7 +758,9 @@ pub async fn start_dictation(
         tracing::debug!("[dictation] Voice commands: {}", voice_cmd == "true");
     }
 
-    let recorder = state.recorder.lock().map_err(|e| e.to_string())?;
+    let recorder = state.recorder.try_lock().map_err(|_| {
+        "المسجل مشغول حالياً، حاول بعد قليل".to_string()
+    })?;
     recorder.start().map_err(|e| e.to_string())?;
     *is_recording = true;
     drop(recorder);
