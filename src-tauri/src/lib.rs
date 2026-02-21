@@ -422,6 +422,17 @@ pub fn run() {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 api.prevent_close();
                 let _ = window.hide();
+                if window.label() == "main" {
+                    let app = window.app_handle();
+                    if let Some(state) = app.try_state::<DictationState>() {
+                        let active = state.is_recording.lock().map(|r| *r).unwrap_or(false)
+                            || state.is_processing.lock().map(|p| *p).unwrap_or(false);
+                        if active {
+                            commands::dictation::show_overlay_window(app);
+                        }
+                    }
+                }
+                return;
             }
 
             if window.label() == "main" {
