@@ -23,7 +23,6 @@ pub fn show_overlay_window(app: &tauri::AppHandle) {
             let screen = monitor.size();
             let scale = monitor.scale_factor();
             let w = 300.0;
-            let _h = 80.0;
             let x = (screen.width as f64 / scale - w) / 2.0;
             let y = (screen.height as f64 / scale) * 0.80;
             let _ = window.set_position(tauri::LogicalPosition::new(x, y));
@@ -648,18 +647,34 @@ pub async fn start_dictation(
     db: State<'_, Database>,
     app: tauri::AppHandle,
 ) -> Result<(), String> {
+    state.streaming_active.store(false, Ordering::SeqCst);
+    let old_handle = {
+        let mut thread_handle = state.streaming_thread.lock().unwrap_or_else(|e| e.into_inner());
+        thread_handle.take()
+    };
+    if let Some(h) = old_handle {
+        tracing::warn!("[dictation] Cleaning up previous streaming thread");
+        let join_result = tokio::task::spawn_blocking(move || h.join());
+        match tokio::time::timeout(std::time::Duration::from_secs(5), join_result).await {
+            Ok(Ok(Ok(_))) => tracing::debug!("[dictation] Previous thread cleaned up"),
+            Ok(Ok(Err(_))) => tracing::warn!("[dictation] Previous thread had panicked"),
+            Ok(Err(e)) => tracing::error!("[dictation] Previous thread join error: {}", e),
+            Err(_) => tracing::warn!("[dictation] Previous thread cleanup timed out after 5s"),
+        }
+    }
+
     let mut is_recording = state.is_recording.lock().map_err(|e| e.to_string())?;
     if *is_recording {
         return Err("التسجيل قيد التشغيل بالفعل".to_string());
     }
 
     {
-        let mut acc = state.accumulated_text.lock().map_err(|e| e.to_string())?;
+        let mut acc = state.accumulated_text.lock().unwrap_or_else(|e| e.into_inner());
         acc.clear();
     }
 
     {
-        let mut pos = state.last_processed_pos.lock().map_err(|e| e.to_string())?;
+        let mut pos = state.last_processed_pos.lock().unwrap_or_else(|e| e.into_inner());
         *pos = 0;
     }
 

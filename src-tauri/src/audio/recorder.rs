@@ -191,6 +191,9 @@ impl AudioRecorder {
         }
 
         let mut stream_lock = self.stream.lock().unwrap();
+        if let Some(ref stream) = *stream_lock {
+            let _ = stream.pause();
+        }
         *stream_lock = None;
 
         let mut start = self.start_time.lock().unwrap();
