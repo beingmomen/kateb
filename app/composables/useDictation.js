@@ -96,7 +96,7 @@ export function useDictation() {
       const text = await Promise.race([
         tauriInvoke('stop_dictation'),
         new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Processing timed out')), 45000)
+          setTimeout(() => reject(new Error('Processing timed out')), 120000)
         )
       ])
       lastResult.value = text

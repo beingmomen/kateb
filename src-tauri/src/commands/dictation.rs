@@ -23,7 +23,6 @@ pub fn show_overlay_window(app: &tauri::AppHandle) {
             let screen = monitor.size();
             let scale = monitor.scale_factor();
             let w = 300.0;
-            let h = 80.0;
             let x = (screen.width as f64 / scale - w) / 2.0;
             let y = (screen.height as f64 / scale) * 0.80;
             let _ = window.set_position(tauri::LogicalPosition::new(x, y));
@@ -144,6 +143,20 @@ fn reset_processing(state: &DictationState, app: &tauri::AppHandle) {
     emit_status(app, false, false);
 }
 
+fn convert_to_16k_mono(raw: &[f32], actual_rate: u32, actual_channels: u16) -> Vec<f32> {
+    use crate::audio::recorder::{resample, stereo_to_mono};
+    let mono = if actual_channels > 1 {
+        stereo_to_mono(raw, actual_channels)
+    } else {
+        raw.to_vec()
+    };
+    if actual_rate != SAMPLE_RATE {
+        resample(&mono, actual_rate, SAMPLE_RATE)
+    } else {
+        mono
+    }
+}
+
 fn streaming_transcription_loop(streaming_active: Arc<AtomicBool>, app: tauri::AppHandle) {
     let mut local_processed_pos: usize = 0;
     let mut last_vad_pos: usize = 0;
@@ -153,13 +166,26 @@ fn streaming_transcription_loop(streaming_active: Arc<AtomicBool>, app: tauri::A
 
     let state: tauri::State<'_, DictationState> = app.state();
 
+    let (actual_rate, actual_channels) = {
+        let recorder = state.recorder.lock().unwrap_or_else(|e| e.into_inner());
+        (recorder.get_actual_sample_rate(), recorder.get_actual_channels())
+    };
+    let rate_ratio = (actual_rate as f64 / SAMPLE_RATE as f64).ceil() as usize;
+    let raw_chunk_samples = CHUNK_SAMPLES * rate_ratio.max(1) * actual_channels.max(1) as usize;
+    let raw_overlap_samples = OVERLAP_SAMPLES * rate_ratio.max(1) * actual_channels.max(1) as usize;
+
+    tracing::debug!(
+        "[streaming] Audio config: {}Hz, {}ch, raw_chunk={}, raw_overlap={}",
+        actual_rate, actual_channels, raw_chunk_samples, raw_overlap_samples
+    );
+
     {
-        let mut pos = state.last_processed_pos.lock().unwrap();
+        let mut pos = state.last_processed_pos.lock().unwrap_or_else(|e| e.into_inner());
         *pos = 0;
     }
 
     {
-        let mut vad = state.vad.lock().unwrap();
+        let mut vad = state.vad.lock().unwrap_or_else(|e| e.into_inner());
         vad.reset();
     }
 
@@ -167,7 +193,7 @@ fn streaming_transcription_loop(streaming_active: Arc<AtomicBool>, app: tauri::A
 
     let auto_stop_enabled = {
         let db: tauri::State<'_, Database> = app.state();
-        let conn = db.0.lock().unwrap();
+        let conn = db.0.lock().unwrap_or_else(|e| e.into_inner());
         let enabled = conn
             .query_row(
                 "SELECT value FROM settings WHERE key = 'auto_stop_silence'",
@@ -195,22 +221,23 @@ fn streaming_transcription_loop(streaming_active: Arc<AtomicBool>, app: tauri::A
         }
 
         let (current_len, audio_level) = {
-            let recorder = state.recorder.lock().unwrap();
+            let recorder = state.recorder.lock().unwrap_or_else(|e| e.into_inner());
             (recorder.get_buffer_len(), recorder.get_audio_level())
         };
 
         let _ = app.emit("audio-level", serde_json::json!({ "level": audio_level }));
 
         let new_samples = current_len.saturating_sub(local_processed_pos);
-        if new_samples < CHUNK_SAMPLES {
+        if new_samples < raw_chunk_samples {
             let new_vad_samples = current_len.saturating_sub(last_vad_pos);
             if new_vad_samples > 0 {
                 let recent_audio = {
-                    let recorder = state.recorder.lock().unwrap();
+                    let recorder = state.recorder.lock().unwrap_or_else(|e| e.into_inner());
                     recorder.get_buffer_range(last_vad_pos, current_len)
                 };
+                let recent_audio = convert_to_16k_mono(&recent_audio, actual_rate, actual_channels);
                 last_vad_pos = current_len;
-                let mut vad = state.vad.lock().unwrap();
+                let mut vad = state.vad.lock().unwrap_or_else(|e| e.into_inner());
                 vad.feed(&recent_audio);
 
                 if auto_stop_enabled.0 && recording_start.elapsed().as_secs_f32() > 5.0 {
@@ -230,14 +257,14 @@ fn streaming_transcription_loop(streaming_active: Arc<AtomicBool>, app: tauri::A
             continue;
         }
 
-        let chunk_start = if local_processed_pos > OVERLAP_SAMPLES {
-            local_processed_pos - OVERLAP_SAMPLES
+        let chunk_start = if local_processed_pos > raw_overlap_samples {
+            local_processed_pos - raw_overlap_samples
         } else {
             0
         };
 
         let chunk_audio = {
-            let recorder = state.recorder.lock().unwrap();
+            let recorder = state.recorder.lock().unwrap_or_else(|e| e.into_inner());
             recorder.get_buffer_range(chunk_start, current_len)
         };
 
@@ -245,15 +272,17 @@ fn streaming_transcription_loop(streaming_active: Arc<AtomicBool>, app: tauri::A
             continue;
         }
 
+        let chunk_audio = convert_to_16k_mono(&chunk_audio, actual_rate, actual_channels);
+
         {
-            let mut vad = state.vad.lock().unwrap();
+            let mut vad = state.vad.lock().unwrap_or_else(|e| e.into_inner());
             let is_speech = vad.feed(&chunk_audio);
             last_vad_pos = current_len;
 
             if !is_speech {
                 tracing::debug!("[streaming] VAD: no speech detected, skipping chunk");
                 local_processed_pos = current_len;
-                *state.last_processed_pos.lock().unwrap() = current_len;
+                *state.last_processed_pos.lock().unwrap_or_else(|e| e.into_inner()) = current_len;
 
                 if auto_stop_enabled.0 && recording_start.elapsed().as_secs_f32() > 5.0 {
                     let silence_dur = vad.silence_duration_secs();
@@ -284,7 +313,7 @@ fn streaming_transcription_loop(streaming_active: Arc<AtomicBool>, app: tauri::A
         let denoised_audio = if ns_enabled {
             tracing::debug!("[streaming] Applying noise suppression to chunk {}...", chunk_index);
             match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                let ns = state.noise_suppressor.lock().unwrap();
+                let ns = state.noise_suppressor.lock().unwrap_or_else(|e| e.into_inner());
                 ns.suppress(&chunk_audio)
             })) {
                 Ok(audio) => {
@@ -311,7 +340,7 @@ fn streaming_transcription_loop(streaming_active: Arc<AtomicBool>, app: tauri::A
         if has_bad {
             tracing::warn!("[streaming] Processed audio has NaN/Inf values, skipping chunk {}", chunk_index);
             local_processed_pos = current_len;
-            *state.last_processed_pos.lock().unwrap() = current_len;
+            *state.last_processed_pos.lock().unwrap_or_else(|e| e.into_inner()) = current_len;
             continue;
         }
 
@@ -323,13 +352,21 @@ fn streaming_transcription_loop(streaming_active: Arc<AtomicBool>, app: tauri::A
         );
 
         let text = {
-            let transcriber = state.transcriber.lock().unwrap();
-            match transcriber.transcribe_chunk(&processed_audio) {
-                Ok(t) => t,
-                Err(e) => {
+            match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let transcriber = state.transcriber.lock().unwrap_or_else(|e| e.into_inner());
+                transcriber.transcribe_chunk(&processed_audio)
+            })) {
+                Ok(Ok(t)) => t,
+                Ok(Err(e)) => {
                     tracing::error!("[streaming] Chunk transcription error: {}", e);
                     local_processed_pos = current_len;
-                    *state.last_processed_pos.lock().unwrap() = current_len;
+                    *state.last_processed_pos.lock().unwrap_or_else(|e| e.into_inner()) = current_len;
+                    continue;
+                }
+                Err(e) => {
+                    tracing::error!("[streaming] Whisper panicked: {:?}", e);
+                    local_processed_pos = current_len;
+                    *state.last_processed_pos.lock().unwrap_or_else(|e| e.into_inner()) = current_len;
                     continue;
                 }
             }
@@ -340,7 +377,7 @@ fn streaming_transcription_loop(streaming_active: Arc<AtomicBool>, app: tauri::A
         }
 
         local_processed_pos = current_len;
-        *state.last_processed_pos.lock().unwrap() = current_len;
+        *state.last_processed_pos.lock().unwrap_or_else(|e| e.into_inner()) = current_len;
         chunk_index += 1;
 
         let chunk_duration = chunk_audio.len() as f32 / SAMPLE_RATE as f32;
@@ -348,7 +385,7 @@ fn streaming_transcription_loop(streaming_active: Arc<AtomicBool>, app: tauri::A
             tracing::debug!("[streaming] Chunk {} result: '{}'", chunk_index, text.trim());
 
             {
-                let mut acc = state.accumulated_text.lock().unwrap();
+                let mut acc = state.accumulated_text.lock().unwrap_or_else(|e| e.into_inner());
                 acc.push(text.trim().to_string());
             }
 
@@ -367,7 +404,7 @@ fn streaming_transcription_loop(streaming_active: Arc<AtomicBool>, app: tauri::A
     tracing::debug!("[streaming] Loop ended");
 }
 
-async fn stop_streaming_thread(state: &State<'_, DictationState>) -> Result<(), String> {
+async fn stop_streaming_thread(state: &State<'_, DictationState>) -> Result<bool, String> {
     state.streaming_active.store(false, Ordering::SeqCst);
     tracing::debug!("[dictation] Waiting for streaming thread to finish...");
 
@@ -376,23 +413,26 @@ async fn stop_streaming_thread(state: &State<'_, DictationState>) -> Result<(), 
         thread_handle.take()
     };
     if let Some(h) = handle {
-        let join_future = tokio::task::spawn_blocking(move || h.join());
-        match tokio::time::timeout(std::time::Duration::from_secs(5), join_future).await {
-            Ok(Ok(Ok(_))) => {
-                tracing::debug!("[dictation] Streaming thread joined successfully");
+        let start = std::time::Instant::now();
+        let timeout = std::time::Duration::from_secs(15);
+
+        while !h.is_finished() {
+            if start.elapsed() >= timeout {
+                tracing::warn!("[dictation] Streaming thread join timed out after 15s, putting handle back");
+                let mut thread_handle = state.streaming_thread.lock().unwrap_or_else(|e| e.into_inner());
+                *thread_handle = Some(h);
+                return Ok(false);
             }
-            Ok(Ok(Err(_))) => {
-                tracing::warn!("[dictation] Streaming thread panicked");
-            }
-            Ok(Err(e)) => {
-                tracing::error!("[dictation] Thread join task error: {}", e);
-            }
-            Err(_) => {
-                tracing::warn!("[dictation] Streaming thread join timed out after 5s, proceeding");
-            }
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
         }
+
+        match h.join() {
+            Ok(_) => tracing::debug!("[dictation] Streaming thread joined successfully"),
+            Err(_) => tracing::warn!("[dictation] Streaming thread panicked"),
+        }
+        return Ok(true);
     }
-    Ok(())
+    Ok(false)
 }
 
 fn capture_audio(state: &State<'_, DictationState>) -> Result<(Vec<f32>, u64), String> {
@@ -419,19 +459,29 @@ fn transcribe_audio(
     audio_data: &[f32],
 ) -> Result<String, String> {
     tracing::debug!("[dictation] Starting final Whisper transcription on full audio...");
-    let transcriber = state.transcriber.lock().map_err(|e| e.to_string())?;
-    match transcriber.transcribe(audio_data) {
-        Ok(t) => {
-            tracing::debug!(
-                "[dictation] Transcription complete: '{}' ({} chars)",
-                t,
-                t.len()
-            );
-            Ok(t)
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let transcriber = state.transcriber.try_lock().map_err(|_| {
+            "المحول مشغول حالياً، حاول مرة أخرى".to_string()
+        })?;
+        match transcriber.transcribe(audio_data) {
+            Ok(t) => {
+                tracing::debug!(
+                    "[dictation] Transcription complete: '{}' ({} chars)",
+                    t,
+                    t.len()
+                );
+                Ok(t)
+            }
+            Err(e) => {
+                tracing::error!("[dictation] ERROR in transcription: {}", e);
+                Err(e.to_string())
+            }
         }
+    })) {
+        Ok(result) => result,
         Err(e) => {
-            tracing::error!("[dictation] ERROR in transcription: {}", e);
-            Err(e.to_string())
+            tracing::error!("[dictation] Whisper panicked during full transcription: {:?}", e);
+            Err("حدث خطأ في المحول أثناء المعالجة".to_string())
         }
     }
 }
@@ -531,9 +581,9 @@ fn save_to_history(
     processing_time_ms: u64,
 ) -> Result<(), String> {
     let conn = db.0.lock().map_err(|e| e.to_string())?;
-    let language = {
-        let transcriber = state.transcriber.lock().map_err(|e| e.to_string())?;
-        transcriber.get_language()
+    let language = match state.transcriber.try_lock() {
+        Ok(t) => t.get_language(),
+        Err(_) => "ar".to_string(),
     };
 
     conn.execute(
@@ -608,18 +658,54 @@ pub async fn start_dictation(
     db: State<'_, Database>,
     app: tauri::AppHandle,
 ) -> Result<(), String> {
+    state.streaming_active.store(false, Ordering::SeqCst);
+    let old_handle = {
+        let mut thread_handle = state.streaming_thread.lock().unwrap_or_else(|e| e.into_inner());
+        thread_handle.take()
+    };
+    if let Some(h) = old_handle {
+        tracing::warn!("[dictation] Found previous streaming thread, cleaning up...");
+        let mut finished = h.is_finished();
+        if !finished {
+            let start = std::time::Instant::now();
+            while start.elapsed() < std::time::Duration::from_secs(5) {
+                if h.is_finished() {
+                    finished = true;
+                    break;
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+            }
+        }
+        if finished {
+            let _ = h.join();
+            tracing::debug!("[dictation] Previous thread cleaned up");
+        } else {
+            tracing::error!("[dictation] Previous thread still running after 5s, cannot start safely");
+            let mut thread_handle = state.streaming_thread.lock().unwrap_or_else(|e| e.into_inner());
+            *thread_handle = Some(h);
+            return Err("المعالجة السابقة لم تنتهِ بعد، حاول مرة أخرى بعد قليل".to_string());
+        }
+    }
+
+    {
+        let is_processing = state.is_processing.lock().map_err(|e| e.to_string())?;
+        if *is_processing {
+            return Err("المعالجة جارية، انتظر حتى تنتهي".to_string());
+        }
+    }
+
     let mut is_recording = state.is_recording.lock().map_err(|e| e.to_string())?;
     if *is_recording {
         return Err("التسجيل قيد التشغيل بالفعل".to_string());
     }
 
     {
-        let mut acc = state.accumulated_text.lock().map_err(|e| e.to_string())?;
+        let mut acc = state.accumulated_text.lock().unwrap_or_else(|e| e.into_inner());
         acc.clear();
     }
 
     {
-        let mut pos = state.last_processed_pos.lock().map_err(|e| e.to_string())?;
+        let mut pos = state.last_processed_pos.lock().unwrap_or_else(|e| e.into_inner());
         *pos = 0;
     }
 
@@ -641,7 +727,9 @@ pub async fn start_dictation(
                 |row| row.get::<_, String>(0),
             )
             .unwrap_or_default();
-        let mut transcriber = state.transcriber.lock().map_err(|e| e.to_string())?;
+        let mut transcriber = state.transcriber.try_lock().map_err(|_| {
+            "المحول مشغول حالياً بمعالجة سابقة، حاول بعد قليل".to_string()
+        })?;
         transcriber.set_language(&lang);
         transcriber.set_custom_vocabulary(&custom_vocab);
         tracing::debug!("[dictation] Language set to: {}, custom vocab: {} chars", lang, custom_vocab.len());
@@ -670,7 +758,9 @@ pub async fn start_dictation(
         tracing::debug!("[dictation] Voice commands: {}", voice_cmd == "true");
     }
 
-    let recorder = state.recorder.lock().map_err(|e| e.to_string())?;
+    let recorder = state.recorder.try_lock().map_err(|_| {
+        "المسجل مشغول حالياً، حاول بعد قليل".to_string()
+    })?;
     recorder.start().map_err(|e| e.to_string())?;
     *is_recording = true;
     drop(recorder);
@@ -715,12 +805,15 @@ pub async fn stop_dictation(
     }
     emit_status(&app, false, true);
 
-    if let Err(e) = stop_streaming_thread(&state).await {
-        tracing::error!("[dictation] Failed to stop streaming thread: {}", e);
-        reset_processing(&state, &app);
-        hide_overlay_window(&app);
-        return Err(e);
-    }
+    let thread_joined = match stop_streaming_thread(&state).await {
+        Ok(joined) => joined,
+        Err(e) => {
+            tracing::error!("[dictation] Failed to stop streaming thread: {}", e);
+            reset_processing(&state, &app);
+            hide_overlay_window(&app);
+            return Err(e);
+        }
+    };
 
     let last_raw_pos = {
         *state.last_processed_pos.lock().unwrap_or_else(|e| e.into_inner())
@@ -748,7 +841,17 @@ pub async fn stop_dictation(
         acc.join(" ")
     };
 
-    let text = if accumulated.trim().is_empty() {
+    let text = if !thread_joined {
+        if !accumulated.trim().is_empty() {
+            tracing::warn!("[dictation] Thread still running, using accumulated text");
+            accumulated.trim().to_string()
+        } else {
+            tracing::warn!("[dictation] Thread still running, no accumulated text, cannot transcribe (lock held)");
+            reset_processing(&state, &app);
+            hide_overlay_window(&app);
+            return Ok(String::new());
+        }
+    } else if accumulated.trim().is_empty() {
         tracing::debug!("[dictation] No accumulated streaming text, falling back to full transcription");
         let speech_ratio = {
             let vad = state.vad.lock().unwrap_or_else(|e| e.into_inner());
@@ -854,10 +957,10 @@ pub async fn stop_dictation(
 
     let text = match state.voice_commands.lock() {
         Ok(vc) => {
-            let lang = match state.transcriber.lock() {
+            let lang = match state.transcriber.try_lock() {
                 Ok(t) => t.get_language(),
-                Err(e) => {
-                    tracing::error!("[dictation] Failed to lock transcriber for language: {}", e);
+                Err(_) => {
+                    tracing::warn!("[dictation] Transcriber locked, using default language for voice commands");
                     "ar".to_string()
                 }
             };
@@ -913,7 +1016,7 @@ pub async fn stop_dictation(
             tracing::error!("[dictation] Failed to auto-type: {}", e);
         }
 
-        let language = match state.transcriber.lock() {
+        let language = match state.transcriber.try_lock() {
             Ok(t) => t.get_language(),
             Err(_) => "ar".to_string(),
         };
