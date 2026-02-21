@@ -266,14 +266,14 @@ impl AudioRecorder {
     }
 }
 
-fn stereo_to_mono(data: &[f32], channels: u16) -> Vec<f32> {
+pub(crate) fn stereo_to_mono(data: &[f32], channels: u16) -> Vec<f32> {
     let ch = channels as usize;
     data.chunks(ch)
         .map(|frame| frame.iter().sum::<f32>() / ch as f32)
         .collect()
 }
 
-fn resample(data: &[f32], from_rate: u32, to_rate: u32) -> Vec<f32> {
+pub(crate) fn resample(data: &[f32], from_rate: u32, to_rate: u32) -> Vec<f32> {
     if from_rate == to_rate || data.is_empty() {
         return data.to_vec();
     }
