@@ -176,13 +176,16 @@ All providers support custom API URLs for proxies and self-hosted solutions.
 
 | Platform | Download | Format |
 |----------|----------|--------|
-| **Linux** (Debian/Ubuntu) | [Kateb_1.0.2_amd64.deb](https://github.com/beingmomen/kateb/releases/download/v1.0.2/Kateb_1.0.2_amd64.deb) | `.deb` |
-| **Linux** (Universal) | [Kateb_1.0.2_amd64.AppImage](https://github.com/beingmomen/kateb/releases/download/v1.0.2/Kateb_1.0.2_amd64.AppImage) | `.AppImage` |
-| **macOS** (Apple Silicon) | [Kateb_1.0.2_aarch64.dmg](https://github.com/beingmomen/kateb/releases/download/v1.0.2/Kateb_1.0.2_aarch64.dmg) | `.dmg` |
-| **macOS** (Intel) | [Kateb_1.0.2_x64.dmg](https://github.com/beingmomen/kateb/releases/download/v1.0.2/Kateb_1.0.2_x64.dmg) | `.dmg` |
-| **Windows** (Installer) | [Kateb_1.0.2_x64-setup.exe](https://github.com/beingmomen/kateb/releases/download/v1.0.2/Kateb_1.0.2_x64-setup.exe) | `.exe` |
-| **Windows** (MSI) | [Kateb_1.0.2_x64_en-US.msi](https://github.com/beingmomen/kateb/releases/download/v1.0.2/Kateb_1.0.2_x64_en-US.msi) | `.msi` |
+| **Linux** (Debian/Ubuntu) | [Kateb_1.4.0_amd64.deb](https://github.com/beingmomen/kateb/releases/download/v1.4.0/Kateb_1.4.0_amd64.deb) | `.deb` |
+| **Linux** (Universal) | [Kateb_1.4.0_amd64.AppImage](https://github.com/beingmomen/kateb/releases/download/v1.4.0/Kateb_1.4.0_amd64.AppImage) | `.AppImage` |
+| **Linux** (Fedora/RHEL) | [Kateb-1.4.0-1.x86_64.rpm](https://github.com/beingmomen/kateb/releases/download/v1.4.0/Kateb-1.4.0-1.x86_64.rpm) | `.rpm` |
+| **macOS** (Apple Silicon) | [Kateb_1.0.9_aarch64.dmg](https://github.com/beingmomen/kateb/releases/download/v1.0.9/Kateb_1.0.9_aarch64.dmg) | `.dmg` |
+| **macOS** (Intel) | [Kateb_1.0.9_x64.dmg](https://github.com/beingmomen/kateb/releases/download/v1.0.9/Kateb_1.0.9_x64.dmg) | `.dmg` |
+| **Windows** (Installer) | [Kateb_1.4.0_x64-setup.exe](https://github.com/beingmomen/kateb/releases/download/v1.4.0/Kateb_1.4.0_x64-setup.exe) | `.exe` |
+| **Windows** (MSI) | [Kateb_1.4.0_x64_en-US.msi](https://github.com/beingmomen/kateb/releases/download/v1.4.0/Kateb_1.4.0_x64_en-US.msi) | `.msi` |
 
+> macOS builds are from v1.0.9, the latest release that includes them. Linux and Windows builds are from the latest release, v1.4.0.
+>
 > [All releases](https://github.com/beingmomen/kateb/releases)
 
 ## GPU Acceleration (Optional)
